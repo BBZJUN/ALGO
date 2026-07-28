@@ -69,9 +69,9 @@
 <br />
 
 
-### 🟨 07-28 데일리 문제
+### 🟨 07-29 데일리 문제
 
-[길 찾기 게임](https://school.programmers.co.kr/learn/courses/30/lessons/42892)
+[두 큐 합 같게 만들기](https://school.programmers.co.kr/learn/courses/30/lessons/118667)
 
 <br />
 
