@@ -69,9 +69,9 @@
 <br />
 
 
-### 🟨 07-30 데일리 문제
+### 🟨 07-31 데일리 문제
 
-[합승 택시 요금](https://school.programmers.co.kr/learn/courses/30/lessons/72413)
+[아이템 줍기](https://school.programmers.co.kr/learn/courses/30/lessons/87694)
 
 <br />
 
