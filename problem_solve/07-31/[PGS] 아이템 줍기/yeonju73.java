@@ -9,9 +9,7 @@ class Solution {
         {-1, 0}
     };
     
-    public int solution(int[][] rectangle, int characterX, int characterY, int itemX, int itemY) {
-        int answer = 0;
-        
+    public int solution(int[][] rectangle, int characterX, int characterY, int itemX, int itemY) {        
         // 최대 좌표 50
         int[][] board = new int[101][101];
         
