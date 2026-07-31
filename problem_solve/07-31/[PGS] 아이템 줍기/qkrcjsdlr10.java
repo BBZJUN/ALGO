@@ -1,115 +1,104 @@
 import java.util.*;
 
 class Solution {
-
-    static class Node {
-        int y;
-        int x;
-        int dir;
-        int dist;
-
-        Node(int y, int x, int dir, int dist) {
-            this.y = y;
-            this.x = x;
-            this.dir = dir;
-            this.dist = dist;
+    
+    static public class Pair{
+        int first;
+        int second;
+        
+        public Pair(int first, int second){
+            this.first = first;
+            this.second = second;
         }
     }
-
-    static int[] dx = {0, 1, 0, -1};
-    static int[] dy = {-1, 0, 1, 0};
-
-    public int solution(int[][] rectangle, int characterX, int characterY,
-                        int itemX, int itemY) {
-
-        int[][] map = new int[110][110];
-
-        // 테두리 생성 (2배 확장)
-        for (int[] rec : rectangle) {
-
+    
+    public int solution(int[][] rectangle, int characterX, int characterY, int itemX, int itemY) {
+        int answer = 0;
+        
+        int maxX = 110;
+        int maxY = 110;
+        
+        int[] dx = {0, 1, 0, -1};
+        int[] dy = {-1, 0, 1, 0};
+        
+        characterY = maxY - 1 - (characterY * 2);
+        itemY = maxY - 1 - (itemY * 2);
+        
+        characterX *= 2;
+        itemX *= 2;
+        
+        int[][] map = new int[maxY][maxX];
+        int[][] dist = new int[maxY][maxX];
+        
+        for(int[] rec : rectangle){
             int sx = rec[0] * 2;
             int sy = rec[1] * 2;
             int ex = rec[2] * 2;
             int ey = rec[3] * 2;
-
-            for (int x = sx; x <= ex; x++) {
-                for (int y = sy; y <= ey; y++) {
-                    map[y][x] = 1;
+            
+            for(int x = sx; x <= ex; x++){
+                for(int y = sy; y <= ey; y++){
+                    map[maxY - 1 - y][x] = 1;
                 }
             }
         }
-
-        // 내부 제거
-        for (int[] rec : rectangle) {
-
+        
+        for(int[] rec : rectangle){
             int sx = rec[0] * 2;
             int sy = rec[1] * 2;
             int ex = rec[2] * 2;
             int ey = rec[3] * 2;
-
-            for (int x = sx + 1; x < ex; x++) {
-                for (int y = sy + 1; y < ey; y++) {
-                    map[y][x] = 0;
+            for(int y = sy + 1; y < ey; y++){
+                for(int x = sx + 1; x < ex; x++){
+                    map[maxY - 1 - y][x] = 0;
                 }
             }
         }
-
-
-        boolean[][][] visited = new boolean[110][110][4];
-
-        int sy = characterY * 2;
-        int sx = characterX * 2;
-
-        int ey = itemY * 2;
-        int ex = itemX * 2;
-
-
-        Queue<Node> q = new ArrayDeque<>();
-
-        // 처음 방향 4개 모두 가능하게 시작
-        for (int d = 0; d < 4; d++) {
-            int ny = sy + dy[d];
-            int nx = sx + dx[d];
-
-            if (map[ny][nx] == 1) {
-                visited[sy][sx][d] = true;
-                q.offer(new Node(sy, sx, d, 0));
+        
+        // for(int[] r : map){
+        //     for(int c : r){
+        //         System.out.print(c);
+        //     }
+        //     System.out.println();
+        // }
+        
+        for(int[] cur : dist){
+            Arrays.fill(cur, -1);
+        }
+        
+        Queue<Pair> q = new ArrayDeque<>();
+        
+        q.offer(new Pair(characterY, characterX));
+        
+        dist[characterY][characterX] = 0;
+        // dist[itemY][itemX] = Integer.MAX_VALUE;
+        while(q.isEmpty() == false){
+            Pair cur = q.poll();
+            int cury = cur.first;
+            int curx = cur.second;
+            // System.out.println(dist[cury][curx]);
+            for(int d = 0; d < 4; d++){
+                int nx = curx + dx[d];
+                int ny = cury + dy[d];
+                
+                
+                if(map[ny][nx] != 1 || dist[ny][nx] != -1) continue;
+                // System.out.println(dist[ny][nx]);
+                
+                if(ny == itemY && nx == itemX){
+                    dist[ny][nx] = dist[cury][curx] + 1;
+                    while(q.isEmpty() == false){
+                        q.poll();
+                    }
+                    break;
+                }
+                dist[ny][nx] = dist[cury][curx] + 1;
+                q.offer(new Pair(ny, nx));
             }
         }
-
-
-        while (!q.isEmpty()) {
-
-            Node cur = q.poll();
-
-            if (cur.y == ey && cur.x == ex) {
-                return cur.dist / 2;
-            }
-
-
-            for (int nd = 0; nd < 4; nd++) {
-
-                int ny = cur.y + dy[nd];
-                int nx = cur.x + dx[nd];
-
-
-                if (map[ny][nx] == 0) continue;
-
-
-                if (visited[ny][nx][nd]) continue;
-
-
-                visited[ny][nx][nd] = true;
-
-                q.offer(new Node(
-                        ny,
-                        nx,
-                        nd,
-                        cur.dist + 1
-                ));
-            }
-        }
-
-        return 0;
+        
+        answer = dist[itemY][itemX] / 2;
+        
+        return answer;
     }
 }
