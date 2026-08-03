@@ -1,10 +1,4 @@
-import java.io.*;
-import java.util.*;
-
-class Main {
-    public static void main(String[] args) throws Exception {
-        BufferedReader br = new BufferedReader(
-            new InputStreamReader(System.in)
-        );
-    }
-}
+아직 못 품 이슈로,,,
+8/4에도 풀어서 올려볼게요 ㅠㅠ
+제가 생각했던 방법은 이슈가 있어서
+(전체시간을 다 초로 분리하는 배열을 만들고, log들이 있는 시간에 다 +1씩 넣어서 가장 중복이 많은 곳 가져오려했었습니다..)
