@@ -69,9 +69,9 @@
 <br />
 
 
-### 🟨 08-03 데일리 문제
+### 🟨 08-04 데일리 문제
 
-[광고삽입](https://school.programmers.co.kr/learn/courses/30/lessons/72414)
+[멀리 뛰기](https://school.programmers.co.kr/learn/courses/30/lessons/12914)
 
 <br />
 
