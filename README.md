@@ -71,7 +71,7 @@
 
 ### 🟨 08-05 데일리 문제
 
-[양궁대회](https://school.programmers.co.kr/learn/courses/30/lessons/92342)
+[큰 수 만들기](https://school.programmers.co.kr/learn/courses/30/lessons/42883)
 
 <br />
 
