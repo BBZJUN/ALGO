@@ -1,0 +1,41 @@
+name: Batch merge all PRs
+
+on:
+  schedule:
+    # 매일 오전 11시 KST
+    - cron: "0 11 * * *"
+      timezone: "Asia/Seoul"
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge-all-prs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Merge all open PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          gh pr list \
+            --repo "$GH_REPO" \
+            --base main \
+            --state open \
+            --limit 100 \
+            --json number \
+            --jq '.[].number' |
+          while read -r pr; do
+            echo "PR #${pr} 병합 시도"
+
+            gh pr merge "$pr" \
+              --repo "$GH_REPO" \
+              --merge \
+              --delete-branch \
+            || echo "PR #${pr} 병합 실패"
+          done
