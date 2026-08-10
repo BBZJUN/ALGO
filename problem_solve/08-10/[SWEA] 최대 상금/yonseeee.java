@@ -22,7 +22,7 @@ class Solution {
 			nums=st.nextToken().toCharArray();
 			int swap_cnt=Integer.parseInt(st.nextToken());
 			
-			visited=new HashSet[swap_cnt+1];
+			visited=new HashSet[swap_cnt+1];//스왑 횟수별 문자열 저장
 			
 			max=0;
 			
@@ -51,16 +51,16 @@ class Solution {
 		}
 		visited[cur_cnt].add(current);
 		
-		if(cur_cnt==total_cnt) {
+		if(cur_cnt==total_cnt) {//DFS 탐색 종료 조건
 			max=Math.max(max, Integer.parseInt(current));
 			return;
 		}
 		
 		for(int i=0;i<nums.length;i++) {
 			for(int j=i+1;j<nums.length;j++) {
-				swap(i,j);
-				dfs(cur_cnt+1, total_cnt);
-				swap(i,j);
+				swap(i,j);//스왑
+				dfs(cur_cnt+1, total_cnt);//다음 단계 DFS
+				swap(i,j);//스왑 취소
 			}
 		}
 	}
