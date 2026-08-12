@@ -69,7 +69,7 @@
 <br />
 
 
-### 🟨 08-12 데일리 문제
+### 🟨 08-13 데일리 문제
 
 [정수 삼각형](https://school.programmers.co.kr/learn/courses/30/lessons/43105)
 
