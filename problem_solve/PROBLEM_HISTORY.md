@@ -1,0 +1,27 @@
+# 문제 풀이 이력
+
+> 이 파일은 GitHub Actions가 자동으로 생성합니다.
+> 문제 중복 여부는 URL 기준으로 판단합니다.
+
+총 문제 수: **18**
+
+| 날짜 | 플랫폼 | 문제 | URL |
+|---|---|---|---|
+| 07-21 | PGS | 네트워크 | https://school.programmers.co.kr/learn/courses/30/lessons/43162 |
+| 07-22 | PGS | 타겟 넘버 | https://school.programmers.co.kr/learn/courses/30/lessons/43165 |
+| 07-23 | PGS | 타겟 넘버 | https://school.programmers.co.kr/learn/courses/30/lessons/43165 |
+| 07-24 | LTC | Trapping Rain Water | https://leetcode.com/problems/trapping-rain-water |
+| 07-27 | PGS | 프로그래머스 - 프렌즈4블록 | https://school.programmers.co.kr/learn/courses/30/lessons/17679 |
+| 07-28 | PGS | 길 찾기 게임 | https://school.programmers.co.kr/learn/courses/30/lessons/42892 |
+| 07-29 | PGS | 두 큐 합 같게 만들기 | https://school.programmers.co.kr/learn/courses/30/lessons/118667 |
+| 07-30 | PGS | 합승 택시 요금 | https://school.programmers.co.kr/learn/courses/30/lessons/72413 |
+| 07-31 | PGS | 아이템 줍기 | https://school.programmers.co.kr/learn/courses/30/lessons/87694 |
+| 08-03 | PGS | 광고삽입 | https://school.programmers.co.kr/learn/courses/30/lessons/72414 |
+| 08-04 | PGS | 멀리 뛰기 | https://school.programmers.co.kr/learn/courses/30/lessons/12914 |
+| 08-05 | PGS | 큰 수 만들기 | https://school.programmers.co.kr/learn/courses/30/lessons/42883 |
+| 08-06 | PGS | 디스크 컨트롤러 | https://school.programmers.co.kr/learn/courses/30/lessons/42627 |
+| 08-07 | SWEA | https://school.programmers.co.kr/learn/courses/30/lessons/42627 | https://swexpertacademy.com/main/code/problem/problemDetail.do?problemLevel=3&contestProbId=AV15Khn6AN0CFAYD&categoryId=AV15Khn6AN0CFAYD&categoryType=CODE&problemTitle=&orderBy=INQUERY_COUNT&selectCodeLang=ALL&select-1=3&pageSize=10&pageIndex=1 |
+| 08-10 | SWEA | 최대 상금 | https://swexpertacademy.com/main/code/problem/problemDetail.do?problemLevel=3&contestProbId=AV15Khn6AN0CFAYD&categoryId=AV15Khn6AN0CFAYD&categoryType=CODE&problemTitle=&orderBy=INQUERY_COUNT&selectCodeLang=ALL&select-1=3&pageSize=10&pageIndex=1 |
+| 08-11 | PGS | 입국심사 | https://school.programmers.co.kr/learn/courses/30/lessons/43238 |
+| 08-12 | PGS | 정수 삼각형 | https://school.programmers.co.kr/learn/courses/30/lessons/43105 |
+| 08-13 | PGS | 비밀 코드 해독 | https://school.programmers.co.kr/learn/courses/30/lessons/388352 |
