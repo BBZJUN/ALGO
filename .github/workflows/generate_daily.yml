@@ -35,9 +35,15 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Generate daily problem folders
+      # 여기서
+      # 1. 기존 문제 URL 수집
+      # 2. 중복 검사
+      # 3. 중복이면 exit 1
+      # 4. 정상일 때 폴더 + PROBLEM_HISTORY.md 생성
+      - name: Check duplicates and generate daily problem folders
         run: python .github/scripts/generate_daily.py
 
+      # 위 단계가 실패하면 이 단계는 실행되지 않음
       - name: Commit generated files
         run: |
           git config user.name "github-actions[bot]"
@@ -50,5 +56,5 @@ jobs:
             exit 0
           fi
 
-          git commit -m "chore: generate daily problem folders [skip ci]"
+          git commit -m "chore: generate daily problems and update history [skip ci]"
           git push origin "HEAD:${{ github.ref_name }}"
