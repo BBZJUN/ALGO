@@ -1,7 +1,8 @@
 class Solution {
     public int solution(int n, int[][] q, int[] ans) {
         int answer = 0;
-        
+
+        // 30C5 = 142,506번
         for(int i=1;i<n-3;i++){
             for(int j=i+1;j<n-2;j++){
                 for(int k=j+1;k<n-1;k++){
