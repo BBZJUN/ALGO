@@ -3,7 +3,8 @@ import java.util.*;
 class Solution {
     public int solution(int n, int[][] edge) {
         int answer = 0;
-        
+
+        //주석 달기
         Map<Integer, List<Integer>> map = new HashMap<>();
         for(int i=1;i<=n;i++){
             map.put(i, new ArrayList<>());
