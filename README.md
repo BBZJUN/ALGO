@@ -69,9 +69,9 @@
 <br />
 
 
-### 🟨 08-13 데일리 문제
+### 🟨 08-14 데일리 문제
 
-[비밀 코드 해독](https://school.programmers.co.kr/learn/courses/30/lessons/388352)
+[가장 먼 노드](https://school.programmers.co.kr/learn/courses/30/lessons/49189)
 
 <br />
 
