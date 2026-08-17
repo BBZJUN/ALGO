@@ -1,28 +1,27 @@
 class Solution {
     public List<List<Integer>> permute(int[] nums) {
-        List<List<Integer>> res = new ArrayList<>();
-        permuteHelper(nums, 0, res);
-        return res;
+        List<List<Integer>> result = new ArrayList<>();
+        makePermute(result, nums, new int[nums.length], 0, new boolean[nums.length]);
+        return result;
     }
-
-    private void permuteHelper(int[] nums, int i, List<List<Integer>> res) {
-        if (i == nums.length) {
-            List<Integer> permutation = new ArrayList<>();
-            for (int num : nums) permutation.add(num);
-            res.add(permutation);
+    public void makePermute(List<List<Integer>> result, int[] nums, int[] arr, int idx, boolean[] visited){
+        if(idx == nums.length){
+            List<Integer> tmp = new ArrayList<>();
+            for(int val : arr){
+                tmp.add(val);
+            }
+            result.add(tmp);
             return;
         }
 
-        for (int j = i; j < nums.length; j++) {
-            swap(nums, i, j);
-            permuteHelper(nums, i + 1, res);
-            swap(nums, i, j); // backtrack
+        for(int i = 0; i<arr.length; i++){
+            if(!visited[i]){
+                visited[i] = true;
+                arr[idx++] = nums[i];
+                makePermute(result, nums, arr, idx, visited);
+                idx--;
+                visited[i] = false;
+            }
         }
-    }
-
-    private void swap(int[] nums, int i, int j) {
-        int tmp = nums[i];
-        nums[i] = nums[j];
-        nums[j] = tmp;
     }
 }
