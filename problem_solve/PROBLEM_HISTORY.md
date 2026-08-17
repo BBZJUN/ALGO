@@ -26,4 +26,4 @@
 | 08-12 | PGS | 정수 삼각형 | https://school.programmers.co.kr/learn/courses/30/lessons/43105 |
 | 08-13 | PGS | 비밀 코드 해독 | https://school.programmers.co.kr/learn/courses/30/lessons/388352 |
 | 08-14 | PGS | 가장 먼 노드 | https://school.programmers.co.kr/learn/courses/30/lessons/49189 |
-| 08-16 | LTC | Permutations | https://leetcode.com/problems/permutations/description/ |
+| 08-17 | LTC | Permutations | https://leetcode.com/problems/permutations/description/ |
