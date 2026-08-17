@@ -73,34 +73,6 @@
 
 <br />
 
-<!-- ALGORITHM_ACTIVITY:START -->
-## 🌱 알고리즘 잔디
-
-> 평일 **1일 1문제** 기준입니다. 초록색이면 해당 날짜 문제 풀이 완료입니다.
-
-[![Algorithm Grass](./assets/algorithm-grass.svg)](./problem_solve)
-
-## 🏅 참여 점수
-
-| 이름 | 점수 | 최장 스트릭 | 배지 |
-|:---|---:|---:|:---:|
-| 김기훈 | **460점** | **19일** | ![GOLD](https://img.shields.io/badge/GOLD-250%2B-d4a72c?style=flat-square) |
-| 박연주 | **460점** | **19일** | ![GOLD](https://img.shields.io/badge/GOLD-250%2B-d4a72c?style=flat-square) |
-| 신상윤 | **460점** | **19일** | ![GOLD](https://img.shields.io/badge/GOLD-250%2B-d4a72c?style=flat-square) |
-| 강재준 | **490점** | **20일** | ![GOLD](https://img.shields.io/badge/GOLD-250%2B-d4a72c?style=flat-square) |
-| 김세연 | **460점** | **19일** | ![GOLD](https://img.shields.io/badge/GOLD-250%2B-d4a72c?style=flat-square) |
-| 이영은 | **430점** | **18일** | ![GOLD](https://img.shields.io/badge/GOLD-250%2B-d4a72c?style=flat-square) |
-| 김준우 | **460점** | **19일** | ![GOLD](https://img.shields.io/badge/GOLD-250%2B-d4a72c?style=flat-square) |
-| 마예은 | **460점** | **19일** | ![GOLD](https://img.shields.io/badge/GOLD-250%2B-d4a72c?style=flat-square) |
-| 최현지 | **332점** | **14일** | ![GOLD](https://img.shields.io/badge/GOLD-250%2B-d4a72c?style=flat-square) |
-| 박천익 | **460점** | **19일** | ![GOLD](https://img.shields.io/badge/GOLD-250%2B-d4a72c?style=flat-square) |
-
-> **점수 규칙:** 첫 풀이 10점, 연속 풀이가 이어질 때마다 다음 풀이에 +2점. 스트릭 보너스는 최대 +20점으로 하루 최대 30점입니다.
-
-> 문제를 놓친 스터디 날짜가 있으면 스트릭은 초기화됩니다. 토·일과 문제 폴더가 없는 날은 스트릭을 끊지 않습니다.
-
-> **배지:** BRONZE 1+ · SILVER 100+ · GOLD 250+ · PLATINUM 500+ · DIAMOND 800+
-<!-- ALGORITHM_ACTIVITY:END -->
 
 <br />
 
