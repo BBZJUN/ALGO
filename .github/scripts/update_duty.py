@@ -1,24 +1,42 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
+import html
 import json
 import re
 
 
+# =========================================================
+# 경로
+# =========================================================
+
 README_PATH = Path("README.md")
 
-STATE_PATH = Path(
-    ".github/problem-duty.json"
-)
+# .github는 gitignore 상태를 유지하고
+# 상태 파일만 레포 루트에서 관리한다.
+STATE_PATH = Path("problem-duty.json")
 
-DUTY_START = (
-    "<!-- PROBLEM_DUTY:START -->"
-)
 
-DUTY_END = (
-    "<!-- PROBLEM_DUTY:END -->"
+# =========================================================
+# README 자동 생성 영역
+# =========================================================
+
+DUTY_START = "<!-- PROBLEM_DUTY:START -->"
+DUTY_END = "<!-- PROBLEM_DUTY:END -->"
+
+
+# =========================================================
+# 시간 정책
+# =========================================================
+
+KST = ZoneInfo("Asia/Seoul")
+
+# 평일 18시부터 다음 문제 출제 의무 발생
+DUTY_CHANGE_TIME = time(
+    hour=18,
+    minute=0,
 )
 
 
@@ -39,58 +57,67 @@ WEEKDAY_NAMES = [
 
 # =========================================================
 # README 멤버 추출
+#
+# 예:
+#
+# <a href="https://github.com/oneul0">
+#   <b>김기훈</b>
+# </a>
 # =========================================================
 
 MEMBER_PATTERN = re.compile(
-    r'<a\s+href=["\']'
-    r'https://github\.com/'
-    r'(?P<username>[^/"\'?#]+)'
-    r'["\'][^>]*>'
-    r'\s*<b>'
-    r'(?P<name>.*?)'
-    r'</b>\s*</a>',
-    re.IGNORECASE
-    | re.DOTALL,
+    r'<a\s+href=["\']https://github\.com/'
+    r'(?P<username>[^/"\'?#]+)["\'][^>]*>'
+    r'\s*<b>(?P<name>.*?)</b>\s*</a>',
+    re.IGNORECASE | re.DOTALL,
 )
 
+
+# =========================================================
+# 현재 시각
+# =========================================================
+
+def now_kst() -> datetime:
+    return datetime.now(KST)
+
+
+# =========================================================
+# README에서 현재 활성 멤버 추출
+# =========================================================
 
 def get_active_members(
     readme: str,
 ) -> dict[str, str]:
     """
-    README의 현재 스터디 멤버를 읽는다.
+    README에 현재 등록되어 있는 스터디원만 활성 멤버로 본다.
 
-    반환:
+    반환 예:
 
     {
         "oneul0": "김기훈",
         "BBZJUN": "강재준",
         ...
     }
-
-    즉 README에 존재하는 사람이
-    현재 활성 멤버다.
     """
 
-    members: dict[
-        str,
-        str,
-    ] = {}
+    members: dict[str, str] = {}
 
     for match in MEMBER_PATTERN.finditer(
         readme
     ):
 
-        username = (
-            match
-            .group("username")
-            .strip()
-        )
+        username = html.unescape(
+            match.group("username")
+        ).strip()
 
         name = re.sub(
             r"<[^>]+>",
             "",
             match.group("name"),
+        )
+
+        name = html.unescape(
+            name
         ).strip()
 
         if not username:
@@ -104,8 +131,9 @@ def get_active_members(
         )
 
     if not members:
+
         raise ValueError(
-            "README에서 스터디 멤버를 "
+            "README에서 활성 스터디 멤버를 "
             "찾지 못했습니다."
         )
 
@@ -113,20 +141,14 @@ def get_active_members(
 
 
 # =========================================================
-# 날짜
+# 평일 계산
 # =========================================================
-
-def today_kst() -> date:
-    return datetime.now(
-        ZoneInfo("Asia/Seoul")
-    ).date()
-
 
 def next_weekday(
     current: date,
 ) -> date:
     """
-    다음 스터디 날짜.
+    다음 평일.
 
     월 -> 화
     목 -> 금
@@ -138,10 +160,8 @@ def next_weekday(
         + timedelta(days=1)
     )
 
-    while (
-        target.weekday()
-        >= 5
-    ):
+    while target.weekday() >= 5:
+
         target += timedelta(
             days=1
         )
@@ -152,16 +172,19 @@ def next_weekday(
 def previous_weekday(
     current: date,
 ) -> date:
+    """
+    이전 평일.
+
+    월 -> 금
+    """
 
     target = (
         current
         - timedelta(days=1)
     )
 
-    while (
-        target.weekday()
-        >= 5
-    ):
+    while target.weekday() >= 5:
+
         target -= timedelta(
             days=1
         )
@@ -169,18 +192,18 @@ def previous_weekday(
     return target
 
 
-def normalize_to_weekday(
-    target: date,
+def next_or_same_weekday(
+    current: date,
 ) -> date:
     """
-    주말에 수동 실행한 경우
-    다음 월요일을 기준으로 보여준다.
+    평일이면 그대로 반환하고,
+    주말이면 다음 월요일을 반환한다.
     """
 
-    while (
-        target.weekday()
-        >= 5
-    ):
+    target = current
+
+    while target.weekday() >= 5:
+
         target += timedelta(
             days=1
         )
@@ -188,18 +211,83 @@ def normalize_to_weekday(
     return target
 
 
+# =========================================================
+# 현재 담당 문제가 어느 날짜 문제인지 계산
+# =========================================================
+
+def current_problem_date(
+    current: datetime,
+) -> date:
+    """
+    현재 담당자가 책임지는 문제 날짜.
+
+    평일 18:00 이전
+        → 오늘 문제
+
+    평일 18:00 이후
+        → 다음 평일 문제
+
+    금요일 18:00 이후
+        → 월요일 문제
+
+    토/일
+        → 월요일 문제
+    """
+
+    today = current.date()
+
+    # -----------------------------------------
+    # 주말
+    # -----------------------------------------
+
+    if today.weekday() >= 5:
+
+        return next_or_same_weekday(
+            today
+        )
+
+    # -----------------------------------------
+    # 평일 18시 이전
+    # -----------------------------------------
+
+    if (
+        current.time()
+        < DUTY_CHANGE_TIME
+    ):
+
+        return today
+
+    # -----------------------------------------
+    # 평일 18시 이후
+    # -----------------------------------------
+
+    return next_weekday(
+        today
+    )
+
+
+# =========================================================
+# 두 평일 사이의 로테이션 횟수 계산
+# =========================================================
+
 def weekday_distance(
     start: date,
     target: date,
 ) -> int:
     """
-    두 날짜 사이의 스터디 회차 수.
+    start에서 target까지 몇 번의
+    평일 담당 전환이 있었는지 계산한다.
 
-    금요일 -> 월요일 = 1
+    월 -> 화 = 1
+    금 -> 월 = 1
     """
 
     if start == target:
         return 0
+
+    # -----------------------------------------
+    # 미래
+    # -----------------------------------------
 
     if target > start:
 
@@ -216,6 +304,10 @@ def weekday_distance(
 
         return count
 
+    # -----------------------------------------
+    # 과거
+    # -----------------------------------------
+
     cursor = start
     count = 0
 
@@ -231,12 +323,20 @@ def weekday_distance(
 
 
 # =========================================================
-# 상태
+# 상태 파일
 # =========================================================
 
 def load_state() -> dict:
     """
-    마지막 담당자와 전체 로테이션 순서를 읽는다.
+    problem-duty.json 로드.
+
+    필요한 구조:
+
+    {
+      "order": [...],
+      "last_date": "2026-08-17",
+      "last_username": "BBZJUN"
+    }
     """
 
     if not STATE_PATH.exists():
@@ -269,10 +369,20 @@ def load_state() -> dict:
 
         raise ValueError(
             "problem-duty.json에 "
-            "필수 값이 없습니다: "
+            "필수 필드가 없습니다: "
             + ", ".join(
                 sorted(missing)
             )
+        )
+
+    if not isinstance(
+        state["order"],
+        list,
+    ):
+
+        raise ValueError(
+            "problem-duty.json의 "
+            "order는 배열이어야 합니다."
         )
 
     return state
@@ -281,11 +391,6 @@ def load_state() -> dict:
 def save_state(
     state: dict,
 ) -> None:
-
-    STATE_PATH.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
 
     with STATE_PATH.open(
         "w",
@@ -305,7 +410,7 @@ def save_state(
 
 
 # =========================================================
-# 인원 변동 반영
+# 인원 변동 대응
 # =========================================================
 
 def sync_rotation(
@@ -313,97 +418,95 @@ def sync_rotation(
     active_members: dict[str, str],
 ) -> list[str]:
     """
-    로테이션과 현재 README 멤버를 동기화한다.
+    기존 로테이션 순서는 최대한 유지한다.
 
-    1. 기존 멤버
-       → 기존 순서 유지
+    탈퇴
+        → order에는 기록 유지
+        → 실제 로테이션에서는 제외
 
-    2. 탈퇴한 멤버
-       → order에는 기록을 남기되
-         실제 로테이션에서는 제외
+    복귀
+        → 기존 order 위치로 자동 복귀
 
-       이렇게 해야 나중에 복귀했을 때
-       원래 자리를 유지할 수 있다.
-
-    3. 신규 멤버
-       → order 마지막에 추가
+    신규
+        → order 맨 뒤에 자동 추가
     """
 
-    order = list(
+    full_order = list(
         state["order"]
     )
 
-    known_lower = {
+    known = {
         username.lower()
-        for username in order
+        for username in full_order
     }
 
-    # -----------------------------------------
-    # 신규 멤버 자동 추가
-    # -----------------------------------------
+    # =====================================================
+    # 신규 멤버
+    # =====================================================
 
     for username in active_members:
 
-        if (
-            username.lower()
-            not in known_lower
-        ):
+        key = username.lower()
 
-            order.append(
-                username
-            )
+        if key in known:
+            continue
 
-            known_lower.add(
-                username.lower()
-            )
+        full_order.append(
+            username
+        )
 
-            print(
-                "신규 멤버 로테이션 추가: "
-                f"{active_members[username]} "
-                f"(@{username})"
-            )
+        known.add(
+            key
+        )
+
+        print(
+            "신규 멤버 로테이션 추가: "
+            f"{active_members[username]} "
+            f"(@{username})"
+        )
 
     state[
         "order"
-    ] = order
+    ] = full_order
 
-    # -----------------------------------------
-    # README에 현재 존재하는 멤버만
-    # 실제 로테이션으로 사용
-    # -----------------------------------------
+    # =====================================================
+    # 현재 README에 존재하는 사람만 활성화
+    # =====================================================
 
-    active_lower = {
+    active_lookup = {
         username.lower(): username
-        for username in active_members
+        for username
+        in active_members
     }
 
     active_order = []
 
-    for username in order:
+    for username in full_order:
 
         real_username = (
-            active_lower.get(
+            active_lookup.get(
                 username.lower()
             )
         )
 
-        if real_username:
+        if real_username is None:
+            continue
 
-            active_order.append(
-                real_username
-            )
+        active_order.append(
+            real_username
+        )
 
     if not active_order:
 
         raise ValueError(
-            "활성 로테이션 멤버가 없습니다."
+            "현재 활성 로테이션 멤버가 없습니다."
         )
 
     return active_order
 
 
 # =========================================================
-# 다음 담당자
+# 로테이션 유틸
 # =========================================================
 
 def find_order_index(
@@ -411,18 +514,17 @@ def find_order_index(
     username: str,
 ) -> int | None:
 
-    username_lower = (
-        username.lower()
-    )
+    target = username.lower()
 
-    for index, item in enumerate(
+    for index, candidate in enumerate(
         order
     ):
 
         if (
-            item.lower()
-            == username_lower
+            candidate.lower()
+            == target
         ):
+
             return index
 
     return None
@@ -434,9 +536,9 @@ def next_active_username(
     current_username: str,
 ) -> str:
     """
-    현재 담당자 다음의 '활성 멤버'를 찾는다.
+    현재 담당자 다음의 활성 멤버를 찾는다.
 
-    탈퇴자는 자동 건너뛴다.
+    중간에 탈퇴자가 있으면 자동으로 건너뛴다.
     """
 
     if not active_order:
@@ -445,22 +547,19 @@ def next_active_username(
             "활성 멤버가 없습니다."
         )
 
-    active_lower = {
+    active_lookup = {
         username.lower(): username
-        for username in active_order
+        for username
+        in active_order
     }
 
-    current_index = (
-        find_order_index(
-            full_order,
-            current_username,
-        )
+    current_index = find_order_index(
+        full_order,
+        current_username,
     )
 
-    # -----------------------------------------
-    # 마지막 담당자가 order에 없는 예외
-    # -----------------------------------------
-
+    # 상태 파일이 깨져 현재 담당자가
+    # order에 없는 경우 첫 활성 멤버 사용
     if current_index is None:
 
         return active_order[0]
@@ -469,7 +568,6 @@ def next_active_username(
         full_order
     )
 
-    # 한 바퀴 돌며 다음 활성 멤버 탐색
     for offset in range(
         1,
         total + 1,
@@ -484,7 +582,7 @@ def next_active_username(
         ]
 
         active_username = (
-            active_lower.get(
+            active_lookup.get(
                 candidate.lower()
             )
         )
@@ -494,25 +592,30 @@ def next_active_username(
             return active_username
 
     raise ValueError(
-        "다음 담당자를 찾지 못했습니다."
+        "다음 활성 담당자를 찾지 못했습니다."
     )
 
 
 # =========================================================
-# 현재 담당자 계산
+# 특정 문제 날짜의 담당자 계산
 # =========================================================
 
-def resolve_today_duty(
+def resolve_duty(
     state: dict,
     active_order: list[str],
     target_date: date,
 ) -> str:
     """
-    last_date / last_username을 기준으로
-    오늘 담당자를 계산한다.
+    상태 파일의 마지막 담당자를 기준으로
+    target_date 담당자를 계산한다.
 
-    날짜가 여러 날 지나도
-    평일 회차만큼 자동으로 앞으로 이동한다.
+    예:
+
+    last_date     = 2026-08-17
+    last_username = BBZJUN
+
+    2026-08-18 담당자
+        → yonseeee
     """
 
     last_date = date.fromisoformat(
@@ -532,62 +635,72 @@ def resolve_today_duty(
         target_date,
     )
 
+    # 과거 날짜를 다시 계산해야 하는 상황은
+    # 상태 기반 로테이션에서는 허용하지 않는다.
+    if distance < 0:
+
+        raise ValueError(
+            "problem-duty.json의 last_date가 "
+            "현재 담당 문제 날짜보다 미래입니다."
+        )
+
+    active_lower = {
+        item.lower()
+        for item
+        in active_order
+    }
+
     # =====================================================
-    # 같은 날
+    # 같은 날짜
     # =====================================================
 
     if distance == 0:
 
-        # 마지막 담당자가 탈퇴했다면
+        # 마지막 담당자가 현재 탈퇴한 상태라면
         # 다음 활성 멤버에게 넘긴다.
-        active_lower = {
-            item.lower()
-            for item in active_order
-        }
-
         if (
             username.lower()
             not in active_lower
         ):
 
-            username = (
-                next_active_username(
-                    full_order,
-                    active_order,
-                    username,
-                )
+            return next_active_username(
+                full_order,
+                active_order,
+                username,
             )
+
+        # 대소문자 차이가 있을 수 있으므로
+        # active_order의 실제 username 반환
+        for active_username in active_order:
+
+            if (
+                active_username.lower()
+                == username.lower()
+            ):
+
+                return active_username
 
         return username
 
     # =====================================================
-    # 미래
+    # 미래 날짜
     # =====================================================
 
-    if distance > 0:
+    for _ in range(
+        distance
+    ):
 
-        for _ in range(
-            distance
-        ):
+        username = next_active_username(
+            full_order,
+            active_order,
+            username,
+        )
 
-            username = (
-                next_active_username(
-                    full_order,
-                    active_order,
-                    username,
-                )
-            )
-
-        return username
-
-    raise ValueError(
-        "상태 파일의 last_date가 "
-        "현재 날짜보다 미래입니다."
-    )
+    return username
 
 
 # =========================================================
-# Markdown
+# 출력 포맷
 # =========================================================
 
 def format_date(
@@ -622,6 +735,10 @@ def member_link(
     )
 
 
+# =========================================================
+# README 담당자 영역
+# =========================================================
+
 def build_duty_block(
     current_date: date,
     current_username: str,
@@ -636,7 +753,8 @@ def build_duty_block(
             username,
             username,
         )
-        for username in active_order
+        for username
+        in active_order
     ]
 
     rotation_text = (
@@ -654,8 +772,8 @@ def build_duty_block(
             "",
 
             (
-                f"> **오늘 · "
-                f"{format_date(current_date)}** "
+                f"> **현재 담당 · "
+                f"{format_date(current_date)} 문제** "
                 f"→ "
                 f"{member_link(
                     current_username,
@@ -666,13 +784,20 @@ def build_duty_block(
             "",
 
             (
-                f"> **다음 · "
-                f"{format_date(next_date)}** "
+                f"> **다음 담당 · "
+                f"{format_date(next_date)} 문제** "
                 f"→ "
                 f"{member_link(
                     next_username,
                     active_members,
                 )}"
+            ),
+
+            "",
+
+            (
+                "> 담당은 평일 **18:00**에 "
+                "다음 문제 담당자로 전환됩니다."
             ),
 
             "",
@@ -689,13 +814,17 @@ def build_duty_block(
 
 
 # =========================================================
-# README 수정
+# README 갱신
 # =========================================================
 
 def update_readme(
     text: str,
     block: str,
 ) -> str:
+
+    # =====================================================
+    # 기존 담당 영역이 있으면 교체
+    # =====================================================
 
     if (
         DUTY_START in text
@@ -718,9 +847,9 @@ def update_readme(
             text,
         )
 
-    # -----------------------------------------
-    # 잔디 아래에 담당자 영역 삽입
-    # -----------------------------------------
+    # =====================================================
+    # 잔디가 있으면 잔디 아래에 삽입
+    # =====================================================
 
     grass_end = (
         "<!-- ALGORITHM_ACTIVITY:END -->"
@@ -744,9 +873,9 @@ def update_readme(
             + text[position:]
         )
 
-    # -----------------------------------------
+    # =====================================================
     # 잔디가 없으면 데일리 문제 앞
-    # -----------------------------------------
+    # =====================================================
 
     daily_heading = re.search(
         r"^###\s*🟨",
@@ -768,6 +897,10 @@ def update_readme(
             + text[position:].lstrip()
         )
 
+    # =====================================================
+    # 둘 다 없으면 README 끝
+    # =====================================================
+
     return (
         text.rstrip()
         + "\n\n"
@@ -788,67 +921,57 @@ def main() -> None:
             "README.md가 없습니다."
         )
 
-    readme = (
-        README_PATH.read_text(
-            encoding="utf-8"
-        )
+    # =====================================================
+    # README
+    # =====================================================
+
+    readme = README_PATH.read_text(
+        encoding="utf-8"
+    )
+
+    active_members = get_active_members(
+        readme
     )
 
     # =====================================================
-    # 현재 멤버
-    # =====================================================
-
-    active_members = (
-        get_active_members(
-            readme
-        )
-    )
-
-    # =====================================================
-    # 로테이션 상태
+    # 상태
     # =====================================================
 
     state = load_state()
 
-    active_order = (
-        sync_rotation(
-            state,
-            active_members,
-        )
+    active_order = sync_rotation(
+        state,
+        active_members,
     )
 
     # =====================================================
-    # 오늘
+    # 현재 시각 기준 담당 문제 날짜
     # =====================================================
 
-    current_date = (
-        normalize_to_weekday(
-            today_kst()
-        )
+    current_time = now_kst()
+
+    duty_date = current_problem_date(
+        current_time
     )
 
-    current_username = (
-        resolve_today_duty(
-            state,
-            active_order,
-            current_date,
-        )
+    current_username = resolve_duty(
+        state,
+        active_order,
+        duty_date,
     )
 
     # =====================================================
-    # 다음 담당자
+    # 다음 담당
     # =====================================================
 
     next_date = next_weekday(
-        current_date
+        duty_date
     )
 
-    next_username = (
-        next_active_username(
-            state["order"],
-            active_order,
-            current_username,
-        )
+    next_username = next_active_username(
+        state["order"],
+        active_order,
+        current_username,
     )
 
     # =====================================================
@@ -856,7 +979,7 @@ def main() -> None:
     # =====================================================
 
     block = build_duty_block(
-        current_date,
+        duty_date,
         current_username,
         next_date,
         next_username,
@@ -864,11 +987,9 @@ def main() -> None:
         active_order,
     )
 
-    updated_readme = (
-        update_readme(
-            readme,
-            block,
-        )
+    updated_readme = update_readme(
+        readme,
+        block,
     )
 
     README_PATH.write_text(
@@ -877,14 +998,12 @@ def main() -> None:
     )
 
     # =====================================================
-    # 상태 갱신
-    #
-    # 오늘의 담당자를 다음 실행의 기준점으로 저장
+    # 현재 상태를 다음 실행 기준점으로 저장
     # =====================================================
 
     state[
         "last_date"
-    ] = current_date.isoformat()
+    ] = duty_date.isoformat()
 
     state[
         "last_username"
@@ -895,11 +1014,16 @@ def main() -> None:
     )
 
     # =====================================================
-    # 로그
+    # Action 로그
     # =====================================================
 
     print(
-        "현재 활성 로테이션: "
+        "실행 시각: "
+        f"{current_time.strftime('%Y-%m-%d %H:%M:%S %Z')}"
+    )
+
+    print(
+        "활성 로테이션: "
         + " → ".join(
             active_members[
                 username
@@ -910,14 +1034,15 @@ def main() -> None:
     )
 
     print(
-        f"오늘 담당자: "
-        f"{active_members[current_username]}"
+        "현재 담당: "
+        f"{active_members[current_username]} "
+        f"({format_date(duty_date)} 문제)"
     )
 
     print(
-        f"다음 담당자: "
+        "다음 담당: "
         f"{active_members[next_username]} "
-        f"({format_date(next_date)})"
+        f"({format_date(next_date)} 문제)"
     )
 
 
