@@ -2,8 +2,8 @@ name: Update Problem Duty
 
 on:
   schedule:
-    # 평일 오전 00:05 KST
-    - cron: "5 0 * * 1-5"
+  # 평일 18시
+    - cron: "0 18 * * 1-5"
       timezone: "Asia/Seoul"
 
   workflow_dispatch:
