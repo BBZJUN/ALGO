@@ -76,6 +76,22 @@
 
 <br />
 
+<br />
+
+<!-- ALGORITHM_ACTIVITY:START -->
+## 🌱 알고리즘 잔디
+
+> 평일 **1일 1문제** 기준입니다. 초록색은 풀이 완료, 회색은 미제출입니다.
+
+[![Algorithm Grass](./assets/algorithm-grass.svg)](./problem_solve)
+
+> **점수:** 첫 풀이 10점 · 연속 풀이 시 다음 문제부터 +2점 · 스트릭 보너스 최대 +20점
+
+> **배지:** BRONZE 1+ · SILVER 100+ · GOLD 250+ · PLATINUM 500+ · DIAMOND 800+
+<!-- ALGORITHM_ACTIVITY:END -->
+
+<br />
+
 ### 🟨 08-17 데일리 문제
 [Permutations](https://leetcode.com/problems/permutations/description/)
 
