@@ -2,7 +2,7 @@ name: Update Problem Duty
 
 on:
   schedule:
-  # 평일 18시
+    # 월~금 오후 18:00 (KST)
     - cron: "0 18 * * 1-5"
       timezone: "Asia/Seoul"
 
@@ -37,7 +37,7 @@ jobs:
       - name: Commit duty
         shell: bash
         run: |
-          if [ -z "$(git status --porcelain -- README.md .github/problem-duty.json)" ]; then
+          if [ -z "$(git status --porcelain -- README.md problem-duty.json)" ]; then
             echo "담당자 변경 사항이 없습니다."
             exit 0
           fi
@@ -46,7 +46,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add README.md
-          git add .github/problem-duty.json
+          git add problem-duty.json
 
           git commit -m "docs: 문제 출제 담당자 업데이트"
 
