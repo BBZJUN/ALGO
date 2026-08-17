@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
@@ -9,29 +8,59 @@ import html
 import os
 import re
 
-# 기존 generate_daily.py가 사용하는 템플릿을 그대로 재사용한다.
 from generate_daily import build_code_template
 
 
-README_PATH = Path("README.md")
+README = Path("README.md")
 PROBLEM_ROOT = Path("problem_solve")
-OUTPUT_PATH = Path("assets/algorithm-grass.svg")
+GRASS_SVG = Path("assets/algorithm-grass.svg")
 
-# README 잔디에 표시할 최근 데일리 회차 수
-MAX_DAYS = 0
+START = "<!-- ALGORITHM_ACTIVITY:START -->"
+END = "<!-- ALGORITHM_ACTIVITY:END -->"
 
-DATE_PATTERN = re.compile(r"^\d{2}-\d{2}$")
+# =========================================================
+# 점수 정책
+# =========================================================
 
-# README의
-# <a href="https://github.com/oneul0"><b>김기훈</b></a>
-# 형태에서 사용자명/이름 추출
-MEMBER_PATTERN = re.compile(
-    r'<a\s+href=["\']https://github\.com/(?P<username>[^/"\'?#]+)["\'][^>]*>'
-    r'\s*<b>(?P<name>.*?)</b>\s*</a>',
-    re.IGNORECASE | re.DOTALL,
+# 문제를 풀었을 때 기본 점수
+BASE_POINT = 10
+
+# 스트릭 1일 증가마다 추가되는 점수
+STREAK_BONUS_PER_DAY = 2
+
+# 스트릭으로 받을 수 있는 최대 추가 점수
+MAX_STREAK_BONUS = 20
+
+
+# =========================================================
+# 잔디 색상
+# =========================================================
+
+EMPTY = "#ebedf0"
+SOLVED = "#216e39"
+
+
+# =========================================================
+# 패턴
+# =========================================================
+
+DATE_RE = re.compile(
+    r"^\d{2}-\d{2}$"
 )
 
-EXTENSION_TO_LANGUAGE = {
+MEMBER_RE = re.compile(
+    r'<a\s+href=["\']https://github\.com/'
+    r'(?P<username>[^/"\'?#]+)["\'][^>]*>'
+    r'\s*<b>(?P<name>.*?)</b>\s*</a>',
+    re.I | re.S,
+)
+
+
+# =========================================================
+# 확장자 → generate_daily.py 언어 이름
+# =========================================================
+
+EXT_TO_LANG = {
     ".java": "java",
     ".swift": "swift",
     ".py": "python",
@@ -44,62 +73,11 @@ EXTENSION_TO_LANGUAGE = {
     ".ts": "typescript",
 }
 
-# GitHub Contribution Graph와 비슷한 색상
-GRASS_COLORS = {
-    0: "#ebedf0",
-    1: "#9be9a8",
-    2: "#40c463",
-    3: "#30a14e",
-    4: "#216e39",
-}
-
-GRASS_START = "<!-- ALGORITHM_GRASS:START -->"
-GRASS_END = "<!-- ALGORITHM_GRASS:END -->"
-
-
-@dataclass(frozen=True)
-class Member:
-    username: str
-    name: str
-
-
-@dataclass(frozen=True)
-class DailyResult:
-    date: str
-    solved: int
-    total: int
-
-    @property
-    def level(self) -> int:
-        """
-        하루 전체 문제 중 몇 문제를 풀었는지에 따라
-        잔디 농도를 0~4단계로 계산한다.
-        """
-
-        if self.total == 0 or self.solved == 0:
-            return 0
-
-        if self.solved >= self.total:
-            return 4
-
-        ratio = self.solved / self.total
-
-        if ratio <= 0.25:
-            return 1
-
-        if ratio <= 0.50:
-            return 2
-
-        if ratio <= 0.75:
-            return 3
-
-        return 4
-
 
 def normalize(text: str) -> str:
     """
-    OS별 개행 차이나 파일 끝 개행 때문에
-    제출 여부가 잘못 판정되지 않도록 정규화한다.
+    개행이나 마지막 공백 차이 때문에
+    제출로 잘못 판단하지 않도록 정규화한다.
     """
 
     return (
@@ -110,20 +88,19 @@ def normalize(text: str) -> str:
     )
 
 
-def extract_members(readme: str) -> list[Member]:
-    """
-    루트 README의 스터디 멤버 표에서
+# =========================================================
+# README에서 스터디 멤버 읽기
+# =========================================================
 
-    GitHub username
-    실제 이름
+def members_from_readme(
+    text: str,
+) -> list[dict[str, str]]:
 
-    을 가져온다.
-    """
+    result = []
+    seen = set()
 
-    members: list[Member] = []
-    seen: set[str] = set()
+    for match in MEMBER_RE.finditer(text):
 
-    for match in MEMBER_PATTERN.finditer(readme):
         username = html.unescape(
             match.group("username")
         ).strip()
@@ -134,10 +111,10 @@ def extract_members(readme: str) -> list[Member]:
             match.group("name"),
         )
 
-        name = html.unescape(name).strip()
-
-        if not username:
-            continue
+        name = (
+            html.unescape(name).strip()
+            or username
+        )
 
         key = username.lower()
 
@@ -146,113 +123,33 @@ def extract_members(readme: str) -> list[Member]:
 
         seen.add(key)
 
-        members.append(
-            Member(
-                username=username,
-                name=name or username,
-            )
+        result.append(
+            {
+                "username": username,
+                "name": name,
+            }
         )
 
-    if not members:
+    if not result:
         raise ValueError(
-            "README의 스터디 멤버 표에서 "
-            "GitHub 사용자명과 이름을 찾지 못했습니다."
+            "README의 스터디 멤버 표를 "
+            "찾지 못했습니다."
         )
 
-    return members
+    return result
 
 
-def is_submitted_file(
-    path: Path,
-    username: str,
-) -> bool:
-    """
-    현재 파일이 자동 생성된 기본 템플릿 그대로인지,
-    실제 사용자가 수정한 파일인지 판단한다.
+# =========================================================
+# 날짜 처리
+# =========================================================
 
-    템플릿 그대로:
-        미제출
-
-    템플릿과 다름:
-        제출
-    """
-
-    language = EXTENSION_TO_LANGUAGE.get(
-        path.suffix.lower()
-    )
-
-    try:
-        content = path.read_text(
-            encoding="utf-8"
-        )
-
-    except UnicodeDecodeError:
-        # 혹시 텍스트가 아닌 파일이 직접 추가된 경우
-        return path.stat().st_size > 0
-
-    # generate_daily.py가 관리하지 않는 확장자는
-    # 파일에 내용이 있으면 제출로 본다.
-    if language is None:
-        return bool(
-            normalize(content)
-        )
-
-    template = build_code_template(
-        username,
-        language,
-    )
-
-    return (
-        normalize(content)
-        != normalize(template)
-    )
-
-
-def solved_problem(
-    problem_dir: Path,
-    member: Member,
-) -> bool:
-    """
-    한 문제 폴더에서 해당 멤버가 문제를 풀었는지 확인한다.
-
-    예:
-    oneul0.java
-    oneul0.py
-
-    여러 언어 파일이 있다면
-    하나라도 실제 수정되어 있으면 풀이한 것으로 본다.
-    """
-
-    username = member.username.lower()
-
-    for path in problem_dir.iterdir():
-
-        if not path.is_file():
-            continue
-
-        # 파일 이름이 GitHub 사용자명이어야 한다.
-        if path.stem.lower() != username:
-            continue
-
-        if is_submitted_file(
-            path,
-            member.username,
-        ):
-            return True
-
-    return False
-
-
-def inferred_date(folder_name: str) -> date:
-    """
-    MM-DD 형태의 폴더를 실제 날짜 순서로 정렬한다.
-
-    연말 -> 연초를 넘어가는 경우도 어느 정도 대응한다.
-    """
+def actual_date(
+    folder: str,
+) -> date:
 
     month, day = map(
         int,
-        folder_name.split("-"),
+        folder.split("-"),
     )
 
     today = datetime.now(
@@ -265,9 +162,11 @@ def inferred_date(folder_name: str) -> date:
         day,
     )
 
-    # 현재보다 7일 이상 미래라면
-    # 전년도 날짜라고 판단한다.
-    if candidate > today + timedelta(days=7):
+    # 연초/연말 대응
+    if (
+        candidate
+        > today + timedelta(days=45)
+    ):
         candidate = date(
             today.year - 1,
             month,
@@ -277,141 +176,387 @@ def inferred_date(folder_name: str) -> date:
     return candidate
 
 
-def collect_date_dirs() -> list[Path]:
+def study_days() -> list[Path]:
     """
-    problem_solve/08-17
-    problem_solve/08-18
-    ...
+    problem_solve/MM-DD 중
 
-    형태의 날짜 폴더를 가져온다.
+    1. 실제 날짜 형식이고
+    2. 평일이고
+    3. 문제 폴더가 존재하는 날짜
+
+    만 스터디 날짜로 사용한다.
     """
 
-    if not PROBLEM_ROOT.exists():
-        raise FileNotFoundError(
-            f"{PROBLEM_ROOT} 폴더가 없습니다."
-        )
+    days = []
 
-    date_dirs = [
-        path
-        for path in PROBLEM_ROOT.iterdir()
-        if (
-            path.is_dir()
-            and DATE_PATTERN.fullmatch(path.name)
-        )
-    ]
+    for path in PROBLEM_ROOT.iterdir():
 
-    date_dirs.sort(
-        key=lambda path: inferred_date(
+        if not path.is_dir():
+            continue
+
+        if not DATE_RE.fullmatch(
             path.name
+        ):
+            continue
+
+        try:
+            current_date = actual_date(
+                path.name
+            )
+
+        except ValueError:
+            continue
+
+        # -----------------------------------------
+        # 토요일 / 일요일 제외
+        # -----------------------------------------
+
+        if current_date.weekday() >= 5:
+            continue
+
+        # -----------------------------------------
+        # 실제 문제 폴더가 없는 날짜 제외
+        # -----------------------------------------
+
+        has_problem = any(
+            child.is_dir()
+            for child in path.iterdir()
         )
+
+        if not has_problem:
+            continue
+
+        days.append(
+            (
+                current_date,
+                path,
+            )
+        )
+
+    days.sort(
+        key=lambda item: item[0]
     )
 
-    if MAX_DAYS > 0:
-        date_dirs = date_dirs[
-            -MAX_DAYS:
-        ]
-
-    return date_dirs
+    return [
+        path
+        for _, path in days
+    ]
 
 
-def collect_results(
-    members: list[Member],
-    date_dirs: list[Path],
-) -> dict[str, list[DailyResult]]:
+# =========================================================
+# 제출 여부 판정
+# =========================================================
+
+def submitted_file(
+    path: Path,
+    username: str,
+) -> bool:
     """
-    날짜별 / 사용자별 풀이 수를 계산한다.
+    현재 파일과 generate_daily.py가 생성하는
+    기본 템플릿을 비교한다.
+
+    같음   → 미제출
+    다름   → 제출
     """
 
-    results = {
-        member.username: []
-        for member in members
-    }
-
-    for date_dir in date_dirs:
-
-        # 날짜 폴더 바로 아래의 디렉터리 =
-        # 그날의 문제
-        problem_dirs = sorted(
-            [
-                path
-                for path in date_dir.iterdir()
-                if path.is_dir()
-            ],
-            key=lambda path: path.name.lower(),
+    try:
+        content = path.read_text(
+            encoding="utf-8"
         )
 
-        for member in members:
+    except UnicodeDecodeError:
 
-            solved = sum(
-                solved_problem(
-                    problem_dir,
-                    member,
-                )
-                for problem_dir in problem_dirs
+        return (
+            path.stat().st_size > 0
+        )
+
+    language = EXT_TO_LANG.get(
+        path.suffix.lower()
+    )
+
+    # -----------------------------------------
+    # generate_daily.py에서 관리하지 않는
+    # 확장자라면 내용 존재 여부로 판단
+    # -----------------------------------------
+
+    if language is None:
+
+        return bool(
+            normalize(content)
+        )
+
+    # -----------------------------------------
+    # 기존 자동 생성 템플릿 가져오기
+    # -----------------------------------------
+
+    template = build_code_template(
+        username,
+        language,
+    )
+
+    return (
+        normalize(content)
+        != normalize(template)
+    )
+
+
+def solved_on_day(
+    day: Path,
+    username: str,
+) -> bool:
+    """
+    평일 1일 1문제 기준.
+
+    해당 날짜 문제 폴더에서
+    자신의 코드 파일이 기본 템플릿과 다르면
+    그날 문제를 푼 것으로 판단한다.
+    """
+
+    for problem in day.iterdir():
+
+        if not problem.is_dir():
+            continue
+
+        for file in problem.iterdir():
+
+            if not file.is_file():
+                continue
+
+            # ---------------------------------
+            # GitHub 사용자명과
+            # 파일명이 같은 파일만 확인
+            # ---------------------------------
+
+            if (
+                file.stem.lower()
+                != username.lower()
+            ):
+                continue
+
+            if submitted_file(
+                file,
+                username,
+            ):
+                return True
+
+    return False
+
+
+# =========================================================
+# 점수 / 스트릭 계산
+# =========================================================
+
+def calculate(
+    members: list[dict[str, str]],
+    days: list[Path],
+) -> dict:
+
+    result = {}
+
+    for member in members:
+
+        username = member[
+            "username"
+        ]
+
+        solved = []
+
+        score = 0
+        streak = 0
+        longest = 0
+
+        for day in days:
+
+            done = solved_on_day(
+                day,
+                username,
             )
 
-            results[
-                member.username
-            ].append(
-                DailyResult(
-                    date=date_dir.name,
-                    solved=solved,
-                    total=len(
-                        problem_dirs
-                    ),
-                )
+            solved.append(
+                done
             )
 
-    return results
+            # ---------------------------------
+            # 미제출
+            # → 스트릭 초기화
+            # ---------------------------------
+
+            if not done:
+
+                streak = 0
+
+                continue
+
+            # ---------------------------------
+            # 제출
+            # ---------------------------------
+
+            streak += 1
+
+            longest = max(
+                longest,
+                streak,
+            )
+
+            # ---------------------------------
+            # 스트릭 보너스
+            #
+            # 1일차 0
+            # 2일차 +2
+            # 3일차 +4
+            # ...
+            # 최대 +20
+            # ---------------------------------
+
+            bonus = min(
+                (
+                    streak - 1
+                )
+                * STREAK_BONUS_PER_DAY,
+
+                MAX_STREAK_BONUS,
+            )
+
+            score += (
+                BASE_POINT
+                + bonus
+            )
+
+        result[
+            username
+        ] = {
+            "solved": solved,
+            "score": score,
+            "longest": longest,
+        }
+
+    return result
 
 
-def escape(value: str) -> str:
+# =========================================================
+# 배지 정책
+# =========================================================
+
+def badge(
+    score: int,
+) -> tuple[str, str, str]:
+
+    if score >= 800:
+
+        return (
+            "DIAMOND",
+            "1f6feb",
+            "800%2B",
+        )
+
+    if score >= 500:
+
+        return (
+            "PLATINUM",
+            "8250df",
+            "500%2B",
+        )
+
+    if score >= 250:
+
+        return (
+            "GOLD",
+            "d4a72c",
+            "250%2B",
+        )
+
+    if score >= 100:
+
+        return (
+            "SILVER",
+            "8c959f",
+            "100%2B",
+        )
+
+    if score > 0:
+
+        return (
+            "BRONZE",
+            "bc6f3c",
+            "1%2B",
+        )
+
+    return (
+        "UNRANKED",
+        "6e7781",
+        "0",
+    )
+
+
+def badge_md(
+    score: int,
+) -> str:
+
+    name, color, threshold = (
+        badge(score)
+    )
+
+    return (
+        f"![{name}]"
+        f"(https://img.shields.io/badge/"
+        f"{name}-{threshold}-{color}"
+        f"?style=flat-square)"
+    )
+
+
+# =========================================================
+# SVG 생성
+# =========================================================
+
+def escape(
+    value: str,
+) -> str:
+
     return html.escape(
         value,
         quote=True,
     )
 
 
-def build_svg(
-    members: list[Member],
-    date_dirs: list[Path],
-    results: dict[
-        str,
-        list[DailyResult],
-    ],
+def make_svg(
+    members: list[dict[str, str]],
+    days: list[Path],
+    stats: dict,
 ) -> str:
     """
-    GitHub Contribution Graph 스타일의 SVG를 만든다.
+    README에 표시할 잔디 SVG.
+
+    행에는:
+    이름 + 잔디
+
+    만 표시한다.
     """
 
-    cell = 15
+    cell = 14
     gap = 4
 
-    step = cell + gap
-
-    left = 145
-    top = 78
-
-    row_step = 26
-
-    right = 145
-    bottom = 58
-
-    columns = max(
-        1,
-        len(date_dirs),
+    step = (
+        cell
+        + gap
     )
 
-    width = (
+    left = 125
+    top = 72
+    row_height = 25
+
+    width = max(
+        360,
+
         left
-        + columns * step
-        + right
+        + len(days) * step
+        + 12,
     )
 
     height = (
         top
-        + len(members) * row_step
-        + bottom
+        + len(members)
+        * row_height
+        + 22
     )
 
     repository = os.getenv(
@@ -419,29 +564,15 @@ def build_svg(
         "Chwippo-Eleven/ALGO",
     )
 
-    lines = [
+    output = [
+
         (
             f'<svg '
             f'xmlns="http://www.w3.org/2000/svg" '
             f'xmlns:xlink="http://www.w3.org/1999/xlink" '
             f'width="{width}" '
             f'height="{height}" '
-            f'viewBox="0 0 {width} {height}" '
-            f'role="img" '
-            f'aria-labelledby="title desc">'
-        ),
-
-        (
-            '<title id="title">'
-            '매일알고 알고리즘 잔디'
-            '</title>'
-        ),
-
-        (
-            '<desc id="desc">'
-            '날짜별 스터디원의 '
-            '알고리즘 문제 풀이 현황'
-            '</desc>'
+            f'viewBox="0 0 {width} {height}">'
         ),
 
         "<style>",
@@ -460,23 +591,14 @@ def build_svg(
         ),
 
         (
-            ".title{"
-            "font-size:18px;"
-            "font-weight:700"
-            "}"
-        ),
-
-        (
-            ".label{"
+            ".name{"
             "font-size:12px;"
             "font-weight:600"
             "}"
         ),
 
         (
-            ".date,"
-            ".count,"
-            ".legend{"
+            ".date{"
             "font-size:10px;"
             "fill:#57606a"
             "}"
@@ -485,162 +607,126 @@ def build_svg(
         (
             "@media(prefers-color-scheme:dark){"
             "text{fill:#c9d1d9}"
-            ".date,"
-            ".count,"
-            ".legend{fill:#8b949e}"
+            ".date{fill:#8b949e}"
             "}"
         ),
 
         "</style>",
-
-        (
-            '<text '
-            'x="0" '
-            'y="20" '
-            'class="title">'
-            'Algorithm Grass'
-            '</text>'
-        ),
     ]
 
-    if not date_dirs:
-
-        lines.extend(
-            [
-                (
-                    '<text '
-                    'x="0" '
-                    'y="48" '
-                    'class="count">'
-                    '표시할 날짜 폴더가 없습니다.'
-                    '</text>'
-                ),
-                "</svg>",
-            ]
-        )
-
-        return "\n".join(lines)
-
-    # -----------------------------
+    # =====================================================
     # 날짜
-    # -----------------------------
+    # =====================================================
 
-    for index, date_dir in enumerate(
-        date_dirs
+    for column, day in enumerate(
+        days
     ):
 
         x = (
             left
-            + index * step
+            + column * step
             + cell / 2
         )
 
-        y = top - 10
+        y = (
+            top - 10
+        )
 
-        lines.append(
+        output.append(
             (
                 f'<text '
                 f'x="{x:.1f}" '
                 f'y="{y}" '
                 f'class="date" '
                 f'text-anchor="end" '
-                f'transform="rotate('
-                f'-45 {x:.1f} {y}'
-                f')">'
-                f'{escape(date_dir.name)}'
+                f'transform="'
+                f'rotate(-45 {x:.1f} {y})'
+                f'">'
+                f'{escape(day.name)}'
                 f'</text>'
             )
         )
 
-    # -----------------------------
+    # =====================================================
     # 멤버별 잔디
-    # -----------------------------
+    # =====================================================
 
     for row, member in enumerate(
         members
     ):
 
-        y = (
-            top
-            + row * row_step
-        )
-
-        member_results = results[
-            member.username
+        username = member[
+            "username"
         ]
 
-        participation_days = sum(
-            result.solved > 0
-            for result in member_results
+        y = (
+            top
+            + row * row_height
         )
 
-        perfect_days = sum(
+        # -----------------------------------------
+        # 이름만 표시
+        # -----------------------------------------
+
+        output.append(
             (
-                result.total > 0
-                and result.solved
-                == result.total
-            )
-            for result in member_results
-        )
-
-        profile_url = (
-            "https://github.com/"
-            + quote(
-                member.username,
-                safe="",
-            )
-        )
-
-        lines.append(
-            (
-                f'<a '
-                f'xlink:href="'
-                f'{escape(profile_url)}" '
-                f'target="_blank">'
-
                 f'<text '
                 f'x="0" '
-                f'y="{y + 12}" '
-                f'class="label">'
-
-                f'{escape(member.name)}'
-
+                f'y="{y + 11}" '
+                f'class="name">'
+                f'{escape(member["name"])}'
                 f'</text>'
-                f'</a>'
             )
         )
 
-        # 각 날짜별 셀
-        for column, result in enumerate(
-            member_results
+        # -----------------------------------------
+        # 날짜별 잔디
+        # -----------------------------------------
+
+        for column, done in enumerate(
+            stats[username]["solved"]
         ):
+
+            day = days[
+                column
+            ]
 
             x = (
                 left
                 + column * step
             )
 
-            date_url = (
+            color = (
+                SOLVED
+                if done
+                else EMPTY
+            )
+
+            url = (
                 f"https://github.com/"
                 f"{repository}/tree/main/"
                 f"problem_solve/"
-                f"{quote(result.date, safe='')}"
+                f"{quote(day.name, safe='')}"
             )
 
-            tooltip = (
-                f"{member.name} "
-                f"(@{member.username}) · "
-                f"{result.date} · "
-                f"{result.solved}/"
-                f"{result.total} 문제"
+            status = (
+                "풀이 완료"
+                if done
+                else "미제출"
             )
 
-            lines.extend(
+            title = (
+                f'{member["name"]} · '
+                f'{day.name} · '
+                f'{status}'
+            )
+
+            output.extend(
                 [
                     (
                         f'<a '
                         f'xlink:href="'
-                        f'{escape(date_url)}" '
+                        f'{escape(url)}" '
                         f'target="_blank">'
                     ),
 
@@ -651,225 +737,311 @@ def build_svg(
                         f'width="{cell}" '
                         f'height="{cell}" '
                         f'rx="3" '
-                        f'fill="'
-                        f'{GRASS_COLORS[result.level]}'
-                        f'">'
+                        f'fill="{color}">'
+                        f'<title>'
+                        f'{escape(title)}'
+                        f'</title>'
+                        f'</rect>'
                     ),
 
-                    (
-                        f"<title>"
-                        f"{escape(tooltip)}"
-                        f"</title>"
-                    ),
-
-                    "</rect>",
                     "</a>",
                 ]
             )
 
-        count_x = (
-            left
-            + len(date_dirs) * step
-            + 10
-        )
-
-        lines.append(
-            (
-                f'<text '
-                f'x="{count_x}" '
-                f'y="{y + 12}" '
-                f'class="count">'
-                f'완주 {perfect_days} · '
-                f'참여 {participation_days}'
-                f'</text>'
-            )
-        )
-
-    # -----------------------------
-    # 범례
-    # -----------------------------
-
-    legend_y = (
-        top
-        + len(members) * row_step
-        + 28
-    )
-
-    legend_x = left
-
-    lines.append(
-        (
-            f'<text '
-            f'x="{legend_x - 35}" '
-            f'y="{legend_y + 11}" '
-            f'class="legend">'
-            f'0'
-            f'</text>'
-        )
-    )
-
-    for level in range(5):
-
-        x = (
-            legend_x
-            + level * step
-        )
-
-        lines.append(
-            (
-                f'<rect '
-                f'x="{x}" '
-                f'y="{legend_y}" '
-                f'width="{cell}" '
-                f'height="{cell}" '
-                f'rx="3" '
-                f'fill="'
-                f'{GRASS_COLORS[level]}'
-                f'"/>'
-            )
-        )
-
-    lines.append(
-        (
-            f'<text '
-            f'x="{legend_x + 5 * step + 4}" '
-            f'y="{legend_y + 11}" '
-            f'class="legend">'
-            f'100%'
-            f'</text>'
-        )
-    )
-
-    lines.append(
+    output.append(
         "</svg>"
     )
 
-    return "\n".join(lines)
+    return "\n".join(
+        output
+    )
+
+
+# =========================================================
+# 참여 점수 표
+# =========================================================
+
+def score_table(
+    members: list[dict[str, str]],
+    stats: dict,
+) -> str:
+
+    lines = [
+        "## 🏅 참여 점수",
+        "",
+        "| 이름 | 점수 | 최장 스트릭 | 배지 |",
+        "|:---|---:|---:|:---:|",
+    ]
+
+    for member in members:
+
+        member_stats = stats[
+            member["username"]
+        ]
+
+        score = member_stats[
+            "score"
+        ]
+
+        longest = member_stats[
+            "longest"
+        ]
+
+        lines.append(
+            (
+                f'| {member["name"]} '
+                f'| **{score}점** '
+                f'| **{longest}일** '
+                f'| {badge_md(score)} |'
+            )
+        )
+
+    lines.extend(
+        [
+            "",
+            (
+                f"> **점수 규칙:** "
+                f"첫 풀이 {BASE_POINT}점, "
+                f"연속 풀이가 이어질 때마다 "
+                f"다음 풀이에 "
+                f"+{STREAK_BONUS_PER_DAY}점. "
+                f"스트릭 보너스는 "
+                f"최대 +{MAX_STREAK_BONUS}점으로 "
+                f"하루 최대 "
+                f"{BASE_POINT + MAX_STREAK_BONUS}점입니다."
+            ),
+            "",
+            (
+                "> 문제를 놓친 스터디 날짜가 있으면 "
+                "스트릭은 초기화됩니다. "
+                "토·일과 문제 폴더가 없는 날은 "
+                "스트릭을 끊지 않습니다."
+            ),
+            "",
+            (
+                "> **배지:** "
+                "BRONZE 1+ · "
+                "SILVER 100+ · "
+                "GOLD 250+ · "
+                "PLATINUM 500+ · "
+                "DIAMOND 800+"
+            ),
+        ]
+    )
+
+    return "\n".join(
+        lines
+    )
+
+
+# =========================================================
+# README 자동 블록
+# =========================================================
+
+def activity_block(
+    members: list[dict[str, str]],
+    stats: dict,
+) -> str:
+
+    return "\n".join(
+        [
+            START,
+
+            "## 🌱 알고리즘 잔디",
+
+            "",
+
+            (
+                "> 평일 **1일 1문제** 기준입니다. "
+                "초록색이면 해당 날짜 문제 풀이 완료입니다."
+            ),
+
+            "",
+
+            (
+                "[![Algorithm Grass]"
+                "(./assets/algorithm-grass.svg)]"
+                "(./problem_solve)"
+            ),
+
+            "",
+
+            score_table(
+                members,
+                stats,
+            ),
+
+            END,
+        ]
+    )
 
 
 def update_readme(
-    readme: str,
+    text: str,
+    block: str,
 ) -> str:
-    """
-    README에 잔디 영역을 자동으로 생성한다.
 
-    이미 있으면 해당 영역만 갱신한다.
-    """
+    # =====================================================
+    # 기존 블록이 있다면 교체
+    # =====================================================
 
-    block = (
-        f"{GRASS_START}\n"
-        "## 🌱 알고리즘 잔디\n\n"
-        "> 각 칸은 해당 날짜의 필수 문제 풀이 비율을 나타냅니다. "
-        "칸을 클릭하면 날짜별 문제 폴더로 이동합니다.\n\n"
-        "[![Algorithm Grass](./assets/algorithm-grass.svg)]"
-        "(./problem_solve)\n"
-        f"{GRASS_END}"
-    )
-
-    # 이미 잔디 블록이 존재하는 경우
     if (
-        GRASS_START in readme
-        and GRASS_END in readme
+        START in text
+        and END in text
     ):
 
         pattern = re.compile(
-            re.escape(
-                GRASS_START
-            )
+            re.escape(START)
             + r".*?"
-            + re.escape(
-                GRASS_END
-            ),
-            re.DOTALL,
+            + re.escape(END),
+
+            re.S,
         )
 
         return pattern.sub(
-            block,
-            readme,
+            lambda _: block,
+            text,
         )
 
-    # 처음 실행하는 경우
-    # 현재 README의 데일리 문제 영역 앞에 삽입한다.
-    daily_heading = re.search(
+    # =====================================================
+    # 처음 생성하는 경우
+    # 데일리 문제 영역 앞에 삽입
+    # =====================================================
+
+    heading = re.search(
         r"^###\s*🟨",
-        readme,
-        re.MULTILINE,
+        text,
+        re.M,
     )
 
-    if daily_heading:
+    if heading:
 
-        position = daily_heading.start()
+        index = heading.start()
 
         return (
-            readme[:position].rstrip()
+            text[:index].rstrip()
             + "\n\n<br />\n\n"
             + block
             + "\n\n<br />\n\n"
-            + readme[position:].lstrip()
+            + text[index:].lstrip()
         )
 
-    # 데일리 문제 heading을 찾지 못했다면
-    # README 맨 아래에 추가한다.
+    # =====================================================
+    # 데일리 영역을 찾지 못하면 맨 아래 삽입
+    # =====================================================
+
     return (
-        readme.rstrip()
+        text.rstrip()
         + "\n\n"
         + block
         + "\n"
     )
 
 
+# =========================================================
+# 실행
+# =========================================================
+
 def main() -> None:
 
-    if not README_PATH.exists():
+    if not README.exists():
+
         raise FileNotFoundError(
             "README.md가 없습니다."
         )
 
-    readme = README_PATH.read_text(
+    if not PROBLEM_ROOT.exists():
+
+        raise FileNotFoundError(
+            "problem_solve 폴더가 없습니다."
+        )
+
+    # =====================================================
+    # README
+    # =====================================================
+
+    readme = README.read_text(
         encoding="utf-8"
     )
 
-    members = extract_members(
+    members = members_from_readme(
         readme
     )
 
-    date_dirs = collect_date_dirs()
+    # =====================================================
+    # 기존 날짜 전체 수집
+    # =====================================================
 
-    results = collect_results(
+    days = study_days()
+
+    # =====================================================
+    # 과거 포함 전체 점수 계산
+    # =====================================================
+
+    stats = calculate(
         members,
-        date_dirs,
+        days,
     )
 
+    # =====================================================
     # SVG 생성
-    OUTPUT_PATH.parent.mkdir(
+    # =====================================================
+
+    GRASS_SVG.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    OUTPUT_PATH.write_text(
-        build_svg(
+    GRASS_SVG.write_text(
+        make_svg(
             members,
-            date_dirs,
-            results,
+            days,
+            stats,
         )
         + "\n",
+
         encoding="utf-8",
     )
 
-    # README에 잔디 영역 자동 추가
-    README_PATH.write_text(
+    # =====================================================
+    # README 갱신
+    # =====================================================
+
+    README.write_text(
         update_readme(
-            readme
+            readme,
+
+            activity_block(
+                members,
+                stats,
+            ),
         ),
+
         encoding="utf-8",
     )
+
+    # =====================================================
+    # Action 로그
+    # =====================================================
 
     print(
-        f"잔디 생성 완료: "
+        f"집계 완료: "
         f"{len(members)}명 / "
-        f"최근 {len(date_dirs)}회 / "
-        f"{OUTPUT_PATH}"
+        f"{len(days)}회"
     )
+
+    for member in members:
+
+        member_stats = stats[
+            member["username"]
+        ]
+
+        print(
+            f'- {member["name"]}: '
+            f'{member_stats["score"]}점 / '
+            f'최장 '
+            f'{member_stats["longest"]}일'
+        )
 
 
 if __name__ == "__main__":
