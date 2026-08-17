@@ -23,12 +23,13 @@ END = "<!-- ALGORITHM_ACTIVITY:END -->"
 # 점수 정책
 # =========================================================
 
+# 문제를 풀었을 때 기본 점수
 BASE_POINT = 10
 
-# 연속 풀이 1일 증가마다 다음 풀이에서 +2점
+# 연속 풀이가 이어질 때마다 다음 풀이 획득 점수 +2
 STREAK_BONUS_PER_DAY = 2
 
-# 스트릭 보너스 최대 +20점
+# 스트릭으로 받을 수 있는 최대 추가 점수
 MAX_STREAK_BONUS = 20
 
 
@@ -55,7 +56,7 @@ BADGE_COLORS = {
 
 
 # =========================================================
-# 패턴
+# 정규식
 # =========================================================
 
 DATE_RE = re.compile(
@@ -71,7 +72,7 @@ MEMBER_RE = re.compile(
 
 
 # =========================================================
-# 확장자 → 언어
+# 확장자 → generate_daily.py 언어명
 # =========================================================
 
 EXT_TO_LANG = {
@@ -88,13 +89,35 @@ EXT_TO_LANG = {
 }
 
 
+# =========================================================
+# 공통
+# =========================================================
+
 def normalize(text: str) -> str:
+    """
+    OS별 개행 차이와 파일 마지막 공백 때문에
+    제출 여부가 잘못 판정되는 것을 방지한다.
+    """
+
     return (
         text
         .replace("\r\n", "\n")
         .replace("\r", "\n")
         .strip()
     )
+
+
+def escape(value: str) -> str:
+    return html.escape(
+        value,
+        quote=True,
+    )
+
+
+def today_kst() -> date:
+    return datetime.now(
+        ZoneInfo("Asia/Seoul")
+    ).date()
 
 
 # =========================================================
@@ -104,6 +127,14 @@ def normalize(text: str) -> str:
 def members_from_readme(
     text: str,
 ) -> list[dict[str, str]]:
+    """
+    README의 스터디 멤버 표에서
+
+    GitHub 사용자명
+    실제 이름
+
+    을 추출한다.
+    """
 
     result = []
     seen = set()
@@ -148,18 +179,19 @@ def members_from_readme(
 
 
 # =========================================================
-# 날짜
+# 날짜 처리
 # =========================================================
-
-def today_kst() -> date:
-    return datetime.now(
-        ZoneInfo("Asia/Seoul")
-    ).date()
-
 
 def actual_date(
     folder: str,
 ) -> date:
+    """
+    MM-DD 폴더명을 실제 날짜 객체로 변환한다.
+
+    예:
+        08-17
+        → 2026-08-17
+    """
 
     month, day = map(
         int,
@@ -174,7 +206,10 @@ def actual_date(
         day,
     )
 
-    # 연말 → 연초 대응
+    # 연말 → 연초를 넘어가는 스터디 대응
+    #
+    # 예를 들어 현재가 1월인데 12-20 폴더가 있다면
+    # 전년도 날짜로 판단한다.
     if (
         candidate
         > today + timedelta(days=45)
@@ -190,13 +225,15 @@ def actual_date(
 
 def study_days() -> list[Path]:
     """
-    problem_solve/MM-DD 중
+    problem_solve/MM-DD 형태 중 실제 스터디 회차만 가져온다.
 
-    - 날짜 형식
-    - 평일
-    - 실제 문제 폴더 존재
+    조건:
+    1. MM-DD 형식
+    2. 평일
+    3. 해당 날짜 아래 실제 문제 폴더 존재
 
-    조건을 만족하는 날짜만 가져온다.
+    주말은 애초에 회차에서 제외하므로
+    금요일 → 월요일은 연속 스트릭으로 계산된다.
     """
 
     days = []
@@ -222,11 +259,17 @@ def study_days() -> list[Path]:
         except ValueError:
             continue
 
+        # -------------------------------------------------
         # 토요일 / 일요일 제외
+        # -------------------------------------------------
+
         if current_date.weekday() >= 5:
             continue
 
-        # 실제 문제 폴더가 있는 날짜만 사용
+        # -------------------------------------------------
+        # 실제 문제 폴더가 존재하는 날짜만 사용
+        # -------------------------------------------------
+
         has_problem = any(
             child.is_dir()
             for child in path.iterdir()
@@ -253,13 +296,23 @@ def study_days() -> list[Path]:
 
 
 # =========================================================
-# 제출 여부
+# 제출 여부 판정
 # =========================================================
 
 def submitted_file(
     path: Path,
     username: str,
 ) -> bool:
+    """
+    generate_daily.py가 만든 기본 템플릿과
+    현재 파일 내용을 비교한다.
+
+    같음
+        → 미제출
+
+    다름
+        → 실제 풀이 제출
+    """
 
     try:
         content = path.read_text(
@@ -267,6 +320,9 @@ def submitted_file(
         )
 
     except UnicodeDecodeError:
+
+        # 텍스트 파일이 아닌 경우
+        # 파일 내용이 존재하면 제출로 본다.
         return (
             path.stat().st_size > 0
         )
@@ -275,12 +331,19 @@ def submitted_file(
         path.suffix.lower()
     )
 
-    # 자동 생성 대상이 아닌 확장자라면
-    # 내용이 있는 경우 제출로 판단
+    # -----------------------------------------------------
+    # generate_daily.py에서 지원하지 않는 확장자
+    # -----------------------------------------------------
+
     if language is None:
+
         return bool(
             normalize(content)
         )
+
+    # -----------------------------------------------------
+    # 기존 자동 생성 템플릿 그대로 재사용
+    # -----------------------------------------------------
 
     template = build_code_template(
         username,
@@ -298,10 +361,11 @@ def solved_on_day(
     username: str,
 ) -> bool:
     """
-    평일 하루 1문제 기준.
+    평일 1일 1문제 기준.
 
-    해당 날짜 문제 폴더에서 자기 파일이
-    자동 생성 템플릿과 다르면 풀이 완료.
+    해당 날짜 문제 폴더에 있는
+    자신의 파일이 기본 템플릿과 달라졌으면
+    풀이 완료로 판단한다.
     """
 
     for problem in day.iterdir():
@@ -313,6 +377,14 @@ def solved_on_day(
 
             if not file.is_file():
                 continue
+
+            # -------------------------------------------------
+            # 파일 이름이 GitHub username과 동일한 경우만 확인
+            #
+            # oneul0.java
+            # BBZJUN.java
+            # ...
+            # -------------------------------------------------
 
             if (
                 file.stem.lower()
@@ -336,6 +408,9 @@ def solved_on_day(
 def badge_name(
     score: int,
 ) -> str:
+    """
+    누적 점수 기준 배지.
+    """
 
     if score >= 800:
         return "DIAMOND"
@@ -356,13 +431,31 @@ def badge_name(
 
 
 # =========================================================
-# 점수 / 스트릭
+# 점수 / 스트릭 / 이번달 참여 계산
 # =========================================================
 
 def calculate(
     members: list[dict[str, str]],
     days: list[Path],
 ) -> dict:
+    """
+    멤버별로 다음을 계산한다.
+
+    solved
+        날짜별 풀이 여부
+
+    score
+        전체 기간 누적 점수
+
+    badge
+        누적 점수 기반 배지
+
+    longest_streak
+        스터디 시작 이후 전체 기간 최장 스트릭
+
+    month_participation
+        현재 달에 문제를 푼 횟수
+    """
 
     result = {}
 
@@ -379,19 +472,19 @@ def calculate(
 
         solved_list = []
 
-        # -----------------------------------------
-        # 전체 누적 점수 계산용
-        # -----------------------------------------
+        # =================================================
+        # 전체 기간 점수 / 스트릭
+        # =================================================
 
         score = 0
-        streak = 0
 
-        # -----------------------------------------
-        # 이번 달 통계
-        # -----------------------------------------
+        current_streak = 0
+        longest_streak = 0
 
-        month_streak = 0
-        month_longest = 0
+        # =================================================
+        # 이번 달 참여
+        # =================================================
+
         month_participation = 0
 
         for day in days:
@@ -405,19 +498,35 @@ def calculate(
                 done
             )
 
-            # =====================================
-            # 전체 누적 점수
-            # =====================================
+            # =================================================
+            # 전체 기간 스트릭
+            # =================================================
 
             if done:
 
-                streak += 1
+                current_streak += 1
+
+                longest_streak = max(
+                    longest_streak,
+                    current_streak,
+                )
+
+                # ---------------------------------------------
+                # 점수
+                #
+                # 1일차 10
+                # 2일차 12
+                # 3일차 14
+                # ...
+                # 최대 하루 30점
+                # ---------------------------------------------
 
                 bonus = min(
                     (
-                        streak - 1
+                        current_streak - 1
                     )
                     * STREAK_BONUS_PER_DAY,
+
                     MAX_STREAK_BONUS,
                 )
 
@@ -428,56 +537,44 @@ def calculate(
 
             else:
 
-                streak = 0
+                # 실제 스터디 회차에서 문제를 풀지 않았으므로
+                # 스트릭 초기화
+                current_streak = 0
 
-            # =====================================
-            # 이번 달 통계
-            # =====================================
+            # =================================================
+            # 이번 달 참여 횟수
+            # =================================================
 
             day_date = actual_date(
                 day.name
             )
 
-            if not (
-                day_date.year
+            if (
+                done
+                and day_date.year
                 == current_year
                 and day_date.month
                 == current_month
             ):
-                continue
-
-            if done:
-
                 month_participation += 1
-
-                month_streak += 1
-
-                month_longest = max(
-                    month_longest,
-                    month_streak,
-                )
-
-            else:
-
-                month_streak = 0
 
         result[
             username
         ] = {
             "solved": solved_list,
 
-            # 전체 누적
             "score": score,
+
             "badge": badge_name(
                 score
             ),
 
-            # 이번 달
+            "longest_streak": (
+                longest_streak
+            ),
+
             "month_participation": (
                 month_participation
-            ),
-            "month_longest": (
-                month_longest
             ),
         }
 
@@ -488,24 +585,26 @@ def calculate(
 # SVG
 # =========================================================
 
-def escape(
-    value: str,
-) -> str:
-
-    return html.escape(
-        value,
-        quote=True,
-    )
-
-
 def make_svg(
     members: list[dict[str, str]],
     days: list[Path],
     stats: dict,
 ) -> str:
+    """
+    README용 알고리즘 잔디 SVG.
+
+    한 행:
+
+    이름
+    점수
+    배지
+    잔디
+    이번달 참여
+    최장 스트릭
+    """
 
     # =====================================================
-    # Layout
+    # 기본 셀 크기
     # =====================================================
 
     cell = 14
@@ -516,30 +615,29 @@ def make_svg(
         + gap
     )
 
-    # -----------------------------------------------------
-    # 왼쪽
+    # =====================================================
+    # 왼쪽 정보 영역
     #
-    # 이름 / 점수 / 배지를 잔디와 같은 행에 배치하기 위해
-    # 기존보다 넓게 잡음
-    # -----------------------------------------------------
+    # 이름 / 점수 / 배지
+    # =====================================================
 
     left = 270
 
-    # -----------------------------------------------------
-    # 날짜 라벨 공간
+    # =====================================================
+    # 날짜 라벨 영역
     #
-    # 기존 72px → 120px
-    #
-    # 08-17 같은 날짜가 회전되었을 때
-    # SVG 위쪽에서 잘리지 않도록 충분히 확보
-    # -----------------------------------------------------
+    # 회전된 날짜가 잘리지 않도록 넉넉하게 확보
+    # =====================================================
 
-    top = 120
+    top = 125
 
     row_height = 28
 
-    # 오른쪽 이번달 통계 영역
-    right = 255
+    # =====================================================
+    # 오른쪽 통계 영역
+    # =====================================================
+
+    right = 270
 
     grass_width = (
         len(days)
@@ -547,7 +645,8 @@ def make_svg(
     )
 
     width = max(
-        750,
+        850,
+
         left
         + grass_width
         + right,
@@ -557,7 +656,7 @@ def make_svg(
         top
         + len(members)
         * row_height
-        + 25
+        + 20
     )
 
     repository = os.getenv(
@@ -574,7 +673,20 @@ def make_svg(
             f'width="{width}" '
             f'height="{height}" '
             f'viewBox="0 0 {width} {height}" '
-            f'role="img">'
+            f'role="img" '
+            f'aria-labelledby="title desc">'
+        ),
+
+        (
+            '<title id="title">'
+            '매일알고 알고리즘 잔디'
+            '</title>'
+        ),
+
+        (
+            '<desc id="desc">'
+            '스터디원의 날짜별 알고리즘 문제 풀이 현황'
+            '</desc>'
         ),
 
         "<style>",
@@ -623,8 +735,9 @@ def make_svg(
         ),
 
         (
-            ".month-stat{"
+            ".stat{"
             "font-size:11px;"
+            "font-weight:500;"
             "fill:#57606a"
             "}"
         ),
@@ -634,7 +747,7 @@ def make_svg(
             "text{fill:#c9d1d9}"
             ".date,"
             ".score,"
-            ".month-stat{fill:#8b949e}"
+            ".stat{fill:#8b949e}"
             "}"
         ),
 
@@ -655,15 +768,10 @@ def make_svg(
             + cell / 2
         )
 
-        # 날짜 셀보다 위에 배치
+        # 셀보다 충분히 위쪽에서 날짜 시작
         y = (
-            top - 20
+            top - 22
         )
-
-        # -------------------------------------------------
-        # text-anchor=start로 두고 -45도 회전
-        # 위쪽 공간을 충분히 확보했기 때문에 잘리지 않음
-        # -------------------------------------------------
 
         output.append(
             (
@@ -681,7 +789,7 @@ def make_svg(
         )
 
     # =====================================================
-    # 멤버
+    # 멤버별 행
     # =====================================================
 
     for row, member in enumerate(
@@ -704,6 +812,18 @@ def make_svg(
             "badge"
         ]
 
+        longest_streak = (
+            member_stats[
+                "longest_streak"
+            ]
+        )
+
+        month_participation = (
+            member_stats[
+                "month_participation"
+            ]
+        )
+
         badge_color = BADGE_COLORS[
             badge
         ]
@@ -717,19 +837,38 @@ def make_svg(
         # 이름
         # =================================================
 
-        output.append(
-            (
-                f'<text '
-                f'x="0" '
-                f'y="{y + 11}" '
-                f'class="name">'
-                f'{escape(member["name"])}'
-                f'</text>'
+        profile_url = (
+            "https://github.com/"
+            + quote(
+                username,
+                safe="",
             )
         )
 
+        output.extend(
+            [
+                (
+                    f'<a '
+                    f'xlink:href="'
+                    f'{escape(profile_url)}" '
+                    f'target="_blank">'
+                ),
+
+                (
+                    f'<text '
+                    f'x="0" '
+                    f'y="{y + 11}" '
+                    f'class="name">'
+                    f'{escape(member["name"])}'
+                    f'</text>'
+                ),
+
+                "</a>",
+            ]
+        )
+
         # =================================================
-        # 참여 점수
+        # 점수
         # =================================================
 
         output.append(
@@ -814,7 +953,7 @@ def make_svg(
                 else "미제출"
             )
 
-            title = (
+            tooltip = (
                 f'{member["name"]} · '
                 f'{day.name} · '
                 f'{status}'
@@ -841,7 +980,7 @@ def make_svg(
 
                     (
                         f'<title>'
-                        f'{escape(title)}'
+                        f'{escape(tooltip)}'
                         f'</title>'
                     ),
 
@@ -852,7 +991,7 @@ def make_svg(
             )
 
         # =================================================
-        # 이번달 참여 / 최장 스트릭
+        # 이번달 참여 + 전체 기간 최장 스트릭
         # =================================================
 
         stat_x = (
@@ -861,29 +1000,17 @@ def make_svg(
             + 18
         )
 
-        month_participation = (
-            member_stats[
-                "month_participation"
-            ]
-        )
-
-        month_longest = (
-            member_stats[
-                "month_longest"
-            ]
-        )
-
         output.append(
             (
                 f'<text '
                 f'x="{stat_x}" '
                 f'y="{y + 11}" '
-                f'class="month-stat">'
+                f'class="stat">'
                 f'이번달 참여 '
                 f'{month_participation}회'
                 f' · '
                 f'최장 스트릭 '
-                f'{month_longest}일'
+                f'{longest_streak}일'
                 f'</text>'
             )
         )
@@ -898,10 +1025,15 @@ def make_svg(
 
 
 # =========================================================
-# README 블록
+# README 자동 영역
 # =========================================================
 
 def activity_block() -> str:
+    """
+    별도 점수 표를 만들지 않는다.
+
+    모든 사용자 정보는 SVG 내부에 표시한다.
+    """
 
     return "\n".join(
         [
@@ -927,7 +1059,8 @@ def activity_block() -> str:
             "",
 
             (
-                "> **점수:** 첫 풀이 10점 · "
+                "> **점수:** "
+                "첫 풀이 10점 · "
                 "연속 풀이 시 다음 문제부터 +2점 · "
                 "스트릭 보너스 최대 +20점"
             ),
@@ -943,6 +1076,14 @@ def activity_block() -> str:
                 "DIAMOND 800+"
             ),
 
+            "",
+
+            (
+                "> **이번달 참여**는 현재 달의 풀이 횟수이며, "
+                "**최장 스트릭**은 스터디 전체 기간 중 "
+                "가장 길게 연속으로 풀이한 기록입니다."
+            ),
+
             END,
         ]
     )
@@ -952,8 +1093,14 @@ def update_readme(
     text: str,
     block: str,
 ) -> str:
+    """
+    README 내 자동 생성 영역만 갱신한다.
+    """
 
-    # 기존 영역 갱신
+    # =====================================================
+    # 기존 블록이 있으면 교체
+    # =====================================================
+
     if (
         START in text
         and END in text
@@ -971,7 +1118,10 @@ def update_readme(
             text,
         )
 
-    # 최초 생성
+    # =====================================================
+    # 최초 실행 시 데일리 문제 영역 앞에 삽입
+    # =====================================================
+
     heading = re.search(
         r"^###\s*🟨",
         text,
@@ -989,6 +1139,10 @@ def update_readme(
             + "\n\n<br />\n\n"
             + text[index:].lstrip()
         )
+
+    # =====================================================
+    # 데일리 문제 영역이 없다면 맨 아래 추가
+    # =====================================================
 
     return (
         text.rstrip()
@@ -1016,6 +1170,10 @@ def main() -> None:
             "problem_solve 폴더가 없습니다."
         )
 
+    # =====================================================
+    # README / 멤버
+    # =====================================================
+
     readme = README.read_text(
         encoding="utf-8"
     )
@@ -1024,7 +1182,15 @@ def main() -> None:
         readme
     )
 
+    # =====================================================
+    # 과거 포함 전체 스터디 회차
+    # =====================================================
+
     days = study_days()
+
+    # =====================================================
+    # 점수 / 참여 / 스트릭 계산
+    # =====================================================
 
     stats = calculate(
         members,
@@ -1032,7 +1198,7 @@ def main() -> None:
     )
 
     # =====================================================
-    # SVG
+    # SVG 생성
     # =====================================================
 
     GRASS_SVG.parent.mkdir(
@@ -1047,11 +1213,12 @@ def main() -> None:
             stats,
         )
         + "\n",
+
         encoding="utf-8",
     )
 
     # =====================================================
-    # README
+    # README 갱신
     # =====================================================
 
     README.write_text(
@@ -1059,11 +1226,12 @@ def main() -> None:
             readme,
             activity_block(),
         ),
+
         encoding="utf-8",
     )
 
     # =====================================================
-    # 로그
+    # GitHub Actions 로그
     # =====================================================
 
     print(
@@ -1084,8 +1252,8 @@ def main() -> None:
             f'{stat["badge"]} / '
             f'이번달 참여 '
             f'{stat["month_participation"]}회 / '
-            f'이번달 최장 스트릭 '
-            f'{stat["month_longest"]}일'
+            f'최장 스트릭 '
+            f'{stat["longest_streak"]}일'
         )
 
 
