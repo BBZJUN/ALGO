@@ -18,7 +18,7 @@ PROBLEM_ROOT = Path("problem_solve")
 OUTPUT_PATH = Path("assets/algorithm-grass.svg")
 
 # README 잔디에 표시할 최근 데일리 회차 수
-MAX_DAYS = 35
+MAX_DAYS = 0
 
 DATE_PATTERN = re.compile(r"^\d{2}-\d{2}$")
 
