@@ -69,7 +69,7 @@
 <br />
 
 
-### 🟨 08-16 데일리 문제
+### 🟨 08-17 데일리 문제
 [Permutations](https://leetcode.com/problems/permutations/description/)
 
 
