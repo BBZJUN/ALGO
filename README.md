@@ -89,6 +89,20 @@
 
 <br />
 
+<!-- PROBLEM_DUTY:START -->
+## 📌 문제 출제 담당
+
+> **현재 담당 · 08-17 (월) 문제** → [**강재준**](https://github.com/BBZJUN)
+
+> **다음 담당 · 08-18 (화) 문제** → [**김세연**](https://github.com/yonseeee)
+
+> 담당은 평일 **18:00**에 다음 문제 담당자로 전환됩니다.
+
+<sub>박천익 → 김준우 → 이영은 → 김기훈 → 강재준 → 김세연 → 마예은 → 신상윤 → 박연주 → 최현지</sub>
+<!-- PROBLEM_DUTY:END -->
+
+<br />
+
 ### 🟨 08-17 데일리 문제
 [Permutations](https://leetcode.com/problems/permutations/description/)
 
