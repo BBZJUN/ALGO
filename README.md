@@ -68,6 +68,17 @@
 
 <br />
 
+<br />
+
+<!-- ALGORITHM_GRASS:START -->
+## 🌱 알고리즘 잔디
+
+> 각 칸은 해당 날짜의 필수 문제 풀이 비율을 나타냅니다. 칸을 클릭하면 날짜별 문제 폴더로 이동합니다.
+
+[![Algorithm Grass](./assets/algorithm-grass.svg)](./problem_solve)
+<!-- ALGORITHM_GRASS:END -->
+
+<br />
 
 ### 🟨 08-17 데일리 문제
 [Permutations](https://leetcode.com/problems/permutations/description/)
