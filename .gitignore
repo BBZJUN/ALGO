@@ -61,3 +61,6 @@ replay_pid*
 .github
 .idea
 .iml
+
+#에셋파일 ignore
+assets
