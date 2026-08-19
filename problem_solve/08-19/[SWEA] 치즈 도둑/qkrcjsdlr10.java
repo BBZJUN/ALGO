@@ -45,7 +45,7 @@ public class Solution {
 
             Queue<Pair> q = new ArrayDeque<>();
 
-            int today = 1;
+            int today = 0;
 
             while(today <= 100){
                 int now = 0;
