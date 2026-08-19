@@ -92,9 +92,9 @@
 <!-- PROBLEM_DUTY:START -->
 ## 📌 문제 출제 담당
 
-> **현재 담당 · 08-20 (목) 문제** → [**박연주**](https://github.com/yeonju73)
+> **현재 담당 · 08-20 (목) 문제** → [**신상윤**](https://github.com/Sangyoon-Shin)
 
-> **다음 담당 · 08-21 (금) 문제** → [**최현지**](https://github.com/hyunji-ch5i15)
+> **다음 담당 · 08-21 (금) 문제** → [**박연주**](https://github.com/yeonju73)
 
 > 담당은 평일 **18:00**에 다음 문제 담당자로 전환됩니다.
 
@@ -103,8 +103,8 @@
 
 <br />
 
-### 🟨 08-19 데일리 문제
-[치즈 도둑](https://swexpertacademy.com/main/code/problem/problemDetail.do?problemLevel=4&contestProbId=AWrDOdQqRCUDFARG&categoryId=AWrDOdQqRCUDFARG&categoryType=CODE&problemTitle=&orderBy=PASS_RATE&selectCodeLang=ALL&select-1=4&pageSize=10&pageIndex=6)
+### 🟨 08-17 데일리 문제
+[Permutations](https://leetcode.com/problems/permutations/description/)
 
 
 <br />
