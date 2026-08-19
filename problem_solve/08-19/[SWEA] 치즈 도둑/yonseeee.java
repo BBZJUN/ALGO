@@ -24,7 +24,8 @@ public class Solution
 			int N=Integer.parseInt(br.readLine());
 			
 			int[][]cheese=new int[N][N];
-			
+
+			//Integer.MIN_VALUE로 하면 업데이트 안 될 수도 있다........
 			int max=1;
 			
 			for(int r=0;r<N;r++) {
