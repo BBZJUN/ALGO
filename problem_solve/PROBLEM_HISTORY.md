@@ -3,7 +3,7 @@
 > 이 파일은 GitHub Actions가 자동으로 생성합니다.
 > 문제 중복 여부는 URL 기준으로 판단합니다.
 
-총 문제 수: **21**
+총 문제 수: **22**
 
 | 날짜 | 플랫폼 | 문제 | URL |
 |---|---|---|---|
@@ -28,3 +28,4 @@
 | 08-14 | PGS | 가장 먼 노드 | https://school.programmers.co.kr/learn/courses/30/lessons/49189 |
 | 08-17 | LTC | Permutations | https://leetcode.com/problems/permutations/description/ |
 | 08-18 | SWEA | 보호 필름 | https://swexpertacademy.com/main/code/problem/problemDetail.do?contestProbId=AV5V1SYKAaUDFAWu&categoryId=AV5V1SYKAaUDFAWu&categoryType=CODE&problemTitle=2112&orderBy=FIRST_REG_DATETIME&selectCodeLang=ALL&select-1=&pageSize=10&pageIndex=1 |
+| 08-19 | SWEA | 치즈 도둑 | https://swexpertacademy.com/main/code/problem/problemDetail.do?problemLevel=4&contestProbId=AWrDOdQqRCUDFARG&categoryId=AWrDOdQqRCUDFARG&categoryType=CODE&problemTitle=&orderBy=PASS_RATE&selectCodeLang=ALL&select-1=4&pageSize=10&pageIndex=6 |
