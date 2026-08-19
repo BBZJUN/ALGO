@@ -92,9 +92,9 @@
 <!-- PROBLEM_DUTY:START -->
 ## 📌 문제 출제 담당
 
-> **현재 담당 · 08-19 (수) 문제** → [**신상윤**](https://github.com/Sangyoon-Shin)
+> **현재 담당 · 08-20 (목) 문제** → [**박연주**](https://github.com/yeonju73)
 
-> **다음 담당 · 08-20 (목) 문제** → [**박연주**](https://github.com/yeonju73)
+> **다음 담당 · 08-21 (금) 문제** → [**최현지**](https://github.com/hyunji-ch5i15)
 
 > 담당은 평일 **18:00**에 다음 문제 담당자로 전환됩니다.
 
