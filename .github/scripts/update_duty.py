@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
 import html
 import json
 import re
@@ -14,17 +15,12 @@ import re
 
 README_PATH = Path("README.md")
 
-# .github는 gitignore 상태를 유지하고
-# 상태 파일만 레포 루트에서 관리한다.
+# 로테이션 상태
+# Git에서 추적해야 한다.
 STATE_PATH = Path("problem-duty.json")
 
-
-# =========================================================
-# README 자동 생성 영역
-# =========================================================
-
-DUTY_START = "<!-- PROBLEM_DUTY:START -->"
-DUTY_END = "<!-- PROBLEM_DUTY:END -->"
+# README가 참조할 자동 생성 이미지
+SVG_PATH = Path("problem-duty.svg")
 
 
 # =========================================================
@@ -33,16 +29,12 @@ DUTY_END = "<!-- PROBLEM_DUTY:END -->"
 
 KST = ZoneInfo("Asia/Seoul")
 
-# 평일 18시부터 다음 문제 출제 의무 발생
+# 평일 18시부터 다음 평일 문제 출제 담당으로 전환
 DUTY_CHANGE_TIME = time(
     hour=18,
     minute=0,
 )
 
-
-# =========================================================
-# 요일
-# =========================================================
 
 WEEKDAY_NAMES = [
     "월",
@@ -88,24 +80,12 @@ def now_kst() -> datetime:
 def get_active_members(
     readme: str,
 ) -> dict[str, str]:
-    """
-    README에 현재 등록되어 있는 스터디원만 활성 멤버로 본다.
-
-    반환 예:
-
-    {
-        "oneul0": "김기훈",
-        "BBZJUN": "강재준",
-        ...
-    }
-    """
 
     members: dict[str, str] = {}
 
     for match in MEMBER_PATTERN.finditer(
         readme
     ):
-
         username = html.unescape(
             match.group("username")
         ).strip()
@@ -123,15 +103,12 @@ def get_active_members(
         if not username:
             continue
 
-        members[
-            username
-        ] = (
+        members[username] = (
             name
             or username
         )
 
     if not members:
-
         raise ValueError(
             "README에서 활성 스터디 멤버를 "
             "찾지 못했습니다."
@@ -147,13 +124,6 @@ def get_active_members(
 def next_weekday(
     current: date,
 ) -> date:
-    """
-    다음 평일.
-
-    월 -> 화
-    목 -> 금
-    금 -> 월
-    """
 
     target = (
         current
@@ -161,7 +131,6 @@ def next_weekday(
     )
 
     while target.weekday() >= 5:
-
         target += timedelta(
             days=1
         )
@@ -172,11 +141,6 @@ def next_weekday(
 def previous_weekday(
     current: date,
 ) -> date:
-    """
-    이전 평일.
-
-    월 -> 금
-    """
 
     target = (
         current
@@ -184,7 +148,6 @@ def previous_weekday(
     )
 
     while target.weekday() >= 5:
-
         target -= timedelta(
             days=1
         )
@@ -195,15 +158,10 @@ def previous_weekday(
 def next_or_same_weekday(
     current: date,
 ) -> date:
-    """
-    평일이면 그대로 반환하고,
-    주말이면 다음 월요일을 반환한다.
-    """
 
     target = current
 
     while target.weekday() >= 5:
-
         target += timedelta(
             days=1
         )
@@ -212,54 +170,38 @@ def next_or_same_weekday(
 
 
 # =========================================================
-# 현재 담당 문제가 어느 날짜 문제인지 계산
+# 현재 담당 문제 날짜
 # =========================================================
 
 def current_problem_date(
     current: datetime,
 ) -> date:
     """
-    현재 담당자가 책임지는 문제 날짜.
-
     평일 18:00 이전
-        → 오늘 문제
+        -> 오늘 문제 담당
 
     평일 18:00 이후
-        → 다음 평일 문제
+        -> 다음 평일 문제 담당
 
     금요일 18:00 이후
-        → 월요일 문제
+        -> 월요일 문제 담당
 
-    토/일
-        → 월요일 문제
+    주말
+        -> 월요일 문제 담당
     """
 
     today = current.date()
 
-    # -----------------------------------------
-    # 주말
-    # -----------------------------------------
-
     if today.weekday() >= 5:
-
         return next_or_same_weekday(
             today
         )
-
-    # -----------------------------------------
-    # 평일 18시 이전
-    # -----------------------------------------
 
     if (
         current.time()
         < DUTY_CHANGE_TIME
     ):
-
         return today
-
-    # -----------------------------------------
-    # 평일 18시 이후
-    # -----------------------------------------
 
     return next_weekday(
         today
@@ -267,35 +209,22 @@ def current_problem_date(
 
 
 # =========================================================
-# 두 평일 사이의 로테이션 횟수 계산
+# 두 평일 사이 로테이션 횟수
 # =========================================================
 
 def weekday_distance(
     start: date,
     target: date,
 ) -> int:
-    """
-    start에서 target까지 몇 번의
-    평일 담당 전환이 있었는지 계산한다.
-
-    월 -> 화 = 1
-    금 -> 월 = 1
-    """
 
     if start == target:
         return 0
 
-    # -----------------------------------------
-    # 미래
-    # -----------------------------------------
-
     if target > start:
-
         cursor = start
         count = 0
 
         while cursor < target:
-
             cursor = next_weekday(
                 cursor
             )
@@ -304,15 +233,10 @@ def weekday_distance(
 
         return count
 
-    # -----------------------------------------
-    # 과거
-    # -----------------------------------------
-
     cursor = start
     count = 0
 
     while cursor > target:
-
         cursor = previous_weekday(
             cursor
         )
@@ -328,19 +252,16 @@ def weekday_distance(
 
 def load_state() -> dict:
     """
-    problem-duty.json 로드.
-
-    필요한 구조:
+    problem-duty.json
 
     {
       "order": [...],
-      "last_date": "2026-08-17",
-      "last_username": "BBZJUN"
+      "last_date": "2026-08-20",
+      "last_username": "Sangyoon-Shin"
     }
     """
 
     if not STATE_PATH.exists():
-
         raise FileNotFoundError(
             f"{STATE_PATH}가 없습니다."
         )
@@ -349,7 +270,6 @@ def load_state() -> dict:
         "r",
         encoding="utf-8",
     ) as file:
-
         state = json.load(
             file
         )
@@ -366,7 +286,6 @@ def load_state() -> dict:
     )
 
     if missing:
-
         raise ValueError(
             "problem-duty.json에 "
             "필수 필드가 없습니다: "
@@ -379,10 +298,15 @@ def load_state() -> dict:
         state["order"],
         list,
     ):
-
         raise ValueError(
             "problem-duty.json의 "
             "order는 배열이어야 합니다."
+        )
+
+    if not state["order"]:
+        raise ValueError(
+            "problem-duty.json의 "
+            "order가 비어 있습니다."
         )
 
     return state
@@ -396,7 +320,6 @@ def save_state(
         "w",
         encoding="utf-8",
     ) as file:
-
         json.dump(
             state,
             file,
@@ -404,9 +327,7 @@ def save_state(
             indent=2,
         )
 
-        file.write(
-            "\n"
-        )
+        file.write("\n")
 
 
 # =========================================================
@@ -418,17 +339,17 @@ def sync_rotation(
     active_members: dict[str, str],
 ) -> list[str]:
     """
-    기존 로테이션 순서는 최대한 유지한다.
+    기존 order는 유지한다.
 
-    탈퇴
-        → order에는 기록 유지
-        → 실제 로테이션에서는 제외
+    탈퇴자
+        -> 기존 order에는 남음
+        -> 현재 로테이션에서는 제외
 
-    복귀
-        → 기존 order 위치로 자동 복귀
+    복귀자
+        -> 기존 위치로 복귀
 
-    신규
-        → order 맨 뒤에 자동 추가
+    신규 멤버
+        -> order 마지막에 추가
     """
 
     full_order = list(
@@ -437,13 +358,11 @@ def sync_rotation(
 
     known = {
         username.lower()
-        for username in full_order
+        for username
+        in full_order
     }
 
-    # =====================================================
-    # 신규 멤버
-    # =====================================================
-
+    # 신규 멤버 추가
     for username in active_members:
 
         key = username.lower()
@@ -465,13 +384,7 @@ def sync_rotation(
             f"(@{username})"
         )
 
-    state[
-        "order"
-    ] = full_order
-
-    # =====================================================
-    # 현재 README에 존재하는 사람만 활성화
-    # =====================================================
+    state["order"] = full_order
 
     active_lookup = {
         username.lower(): username
@@ -479,7 +392,7 @@ def sync_rotation(
         in active_members
     }
 
-    active_order = []
+    active_order: list[str] = []
 
     for username in full_order:
 
@@ -497,7 +410,6 @@ def sync_rotation(
         )
 
     if not active_order:
-
         raise ValueError(
             "현재 활성 로테이션 멤버가 없습니다."
         )
@@ -506,7 +418,7 @@ def sync_rotation(
 
 
 # =========================================================
-# 로테이션 유틸
+# 로테이션
 # =========================================================
 
 def find_order_index(
@@ -519,12 +431,10 @@ def find_order_index(
     for index, candidate in enumerate(
         order
     ):
-
         if (
             candidate.lower()
             == target
         ):
-
             return index
 
     return None
@@ -535,14 +445,8 @@ def next_active_username(
     active_order: list[str],
     current_username: str,
 ) -> str:
-    """
-    현재 담당자 다음의 활성 멤버를 찾는다.
-
-    중간에 탈퇴자가 있으면 자동으로 건너뛴다.
-    """
 
     if not active_order:
-
         raise ValueError(
             "활성 멤버가 없습니다."
         )
@@ -558,10 +462,7 @@ def next_active_username(
         current_username,
     )
 
-    # 상태 파일이 깨져 현재 담당자가
-    # order에 없는 경우 첫 활성 멤버 사용
     if current_index is None:
-
         return active_order[0]
 
     total = len(
@@ -572,7 +473,6 @@ def next_active_username(
         1,
         total + 1,
     ):
-
         candidate = full_order[
             (
                 current_index
@@ -588,16 +488,16 @@ def next_active_username(
         )
 
         if active_username:
-
             return active_username
 
     raise ValueError(
-        "다음 활성 담당자를 찾지 못했습니다."
+        "다음 활성 담당자를 "
+        "찾지 못했습니다."
     )
 
 
 # =========================================================
-# 특정 문제 날짜의 담당자 계산
+# 특정 날짜 담당자 계산
 # =========================================================
 
 def resolve_duty(
@@ -605,18 +505,6 @@ def resolve_duty(
     active_order: list[str],
     target_date: date,
 ) -> str:
-    """
-    상태 파일의 마지막 담당자를 기준으로
-    target_date 담당자를 계산한다.
-
-    예:
-
-    last_date     = 2026-08-17
-    last_username = BBZJUN
-
-    2026-08-18 담당자
-        → yonseeee
-    """
 
     last_date = date.fromisoformat(
         state["last_date"]
@@ -635,10 +523,7 @@ def resolve_duty(
         target_date,
     )
 
-    # 과거 날짜를 다시 계산해야 하는 상황은
-    # 상태 기반 로테이션에서는 허용하지 않는다.
     if distance < 0:
-
         raise ValueError(
             "problem-duty.json의 last_date가 "
             "현재 담당 문제 날짜보다 미래입니다."
@@ -650,57 +535,46 @@ def resolve_duty(
         in active_order
     }
 
-    # =====================================================
     # 같은 날짜
-    # =====================================================
-
     if distance == 0:
 
-        # 마지막 담당자가 현재 탈퇴한 상태라면
-        # 다음 활성 멤버에게 넘긴다.
         if (
             username.lower()
             not in active_lower
         ):
-
             return next_active_username(
                 full_order,
                 active_order,
                 username,
             )
 
-        # 대소문자 차이가 있을 수 있으므로
-        # active_order의 실제 username 반환
         for active_username in active_order:
 
             if (
                 active_username.lower()
                 == username.lower()
             ):
-
                 return active_username
 
         return username
 
-    # =====================================================
     # 미래 날짜
-    # =====================================================
-
     for _ in range(
         distance
     ):
-
-        username = next_active_username(
-            full_order,
-            active_order,
-            username,
+        username = (
+            next_active_username(
+                full_order,
+                active_order,
+                username,
+            )
         )
 
     return username
 
 
 # =========================================================
-# 출력 포맷
+# 표시
 # =========================================================
 
 def format_date(
@@ -718,195 +592,206 @@ def format_date(
     )
 
 
-def member_link(
-    username: str,
-    active_members: dict[str, str],
+def escape_svg(
+    value: str,
 ) -> str:
-
-    name = active_members.get(
-        username,
-        username,
-    )
-
-    return (
-        f"[**{name}**]"
-        f"(https://github.com/"
-        f"{username})"
+    return html.escape(
+        value,
+        quote=True,
     )
 
 
 # =========================================================
-# README 담당자 영역
+# SVG 생성
 # =========================================================
 
-def build_duty_block(
-    current_date: date,
+def build_svg(
+    problem_date: date,
     current_username: str,
     next_date: date,
     next_username: str,
-    active_members: dict[str, str],
     active_order: list[str],
+    active_members: dict[str, str],
 ) -> str:
 
-    rotation_names = [
+    current_name = (
+        active_members.get(
+            current_username,
+            current_username,
+        )
+    )
+
+    next_name = (
+        active_members.get(
+            next_username,
+            next_username,
+        )
+    )
+
+    rotation = " → ".join(
         active_members.get(
             username,
             username,
         )
         for username
         in active_order
-    ]
-
-    rotation_text = (
-        " → ".join(
-            rotation_names
-        )
     )
 
-    return "\n".join(
-        [
-            DUTY_START,
-
-            "## 📌 문제 출제 담당",
-
-            "",
-
-            (
-                f"> **현재 담당 · "
-                f"{format_date(current_date)} 문제** "
-                f"→ "
-                f"{member_link(
-                    current_username,
-                    active_members,
-                )}"
-            ),
-
-            "",
-
-            (
-                f"> **다음 담당 · "
-                f"{format_date(next_date)} 문제** "
-                f"→ "
-                f"{member_link(
-                    next_username,
-                    active_members,
-                )}"
-            ),
-
-            "",
-
-            (
-                "> 담당은 평일 **18:00**에 "
-                "다음 문제 담당자로 전환됩니다."
-            ),
-
-            "",
-
-            (
-                f"<sub>"
-                f"{rotation_text}"
-                f"</sub>"
-            ),
-
-            DUTY_END,
-        ]
+    current_date_text = escape_svg(
+        format_date(problem_date)
     )
 
-
-# =========================================================
-# README 갱신
-# =========================================================
-
-def update_readme(
-    text: str,
-    block: str,
-) -> str:
-
-    # =====================================================
-    # 기존 담당 영역이 있으면 교체
-    # =====================================================
-
-    if (
-        DUTY_START in text
-        and DUTY_END in text
-    ):
-
-        pattern = re.compile(
-            re.escape(
-                DUTY_START
-            )
-            + r".*?"
-            + re.escape(
-                DUTY_END
-            ),
-            re.DOTALL,
-        )
-
-        return pattern.sub(
-            lambda _: block,
-            text,
-        )
-
-    # =====================================================
-    # 잔디가 있으면 잔디 아래에 삽입
-    # =====================================================
-
-    grass_end = (
-        "<!-- ALGORITHM_ACTIVITY:END -->"
+    next_date_text = escape_svg(
+        format_date(next_date)
     )
 
-    if grass_end in text:
-
-        position = (
-            text.index(
-                grass_end
-            )
-            + len(
-                grass_end
-            )
-        )
-
-        return (
-            text[:position]
-            + "\n\n<br />\n\n"
-            + block
-            + text[position:]
-        )
-
-    # =====================================================
-    # 잔디가 없으면 데일리 문제 앞
-    # =====================================================
-
-    daily_heading = re.search(
-        r"^###\s*🟨",
-        text,
-        re.MULTILINE,
+    current_name_text = escape_svg(
+        current_name
     )
 
-    if daily_heading:
-
-        position = (
-            daily_heading.start()
-        )
-
-        return (
-            text[:position].rstrip()
-            + "\n\n"
-            + block
-            + "\n\n<br />\n\n"
-            + text[position:].lstrip()
-        )
-
-    # =====================================================
-    # 둘 다 없으면 README 끝
-    # =====================================================
-
-    return (
-        text.rstrip()
-        + "\n\n"
-        + block
-        + "\n"
+    next_name_text = escape_svg(
+        next_name
     )
+
+    current_username_text = escape_svg(
+        current_username
+    )
+
+    next_username_text = escape_svg(
+        next_username
+    )
+
+    rotation_text = escape_svg(
+        rotation
+    )
+
+    return f"""\
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="1000"
+    height="230"
+    viewBox="0 0 1000 230"
+    role="img"
+    aria-labelledby="title desc"
+>
+  <title id="title">문제 출제 담당</title>
+  <desc id="desc">
+    현재 문제 출제 담당자와 다음 담당자
+  </desc>
+
+  <rect
+      x="0"
+      y="0"
+      width="1000"
+      height="230"
+      rx="16"
+      fill="#0d1117"
+  />
+
+  <text
+      x="36"
+      y="44"
+      fill="#f0f6fc"
+      font-size="22"
+      font-weight="700"
+      font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+  >
+    문제 출제 담당
+  </text>
+
+  <text
+      x="36"
+      y="90"
+      fill="#8b949e"
+      font-size="17"
+      font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+  >
+    현재 담당 · {current_date_text} 문제
+  </text>
+
+  <text
+      x="335"
+      y="90"
+      fill="#f0f6fc"
+      font-size="20"
+      font-weight="700"
+      font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+  >
+    {current_name_text} (@{current_username_text})
+  </text>
+
+  <text
+      x="36"
+      y="132"
+      fill="#8b949e"
+      font-size="17"
+      font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+  >
+    다음 담당 · {next_date_text} 문제
+  </text>
+
+  <text
+      x="335"
+      y="132"
+      fill="#f0f6fc"
+      font-size="20"
+      font-weight="700"
+      font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+  >
+    {next_name_text} (@{next_username_text})
+  </text>
+
+  <line
+      x1="36"
+      y1="158"
+      x2="964"
+      y2="158"
+      stroke="#30363d"
+  />
+
+  <text
+      x="36"
+      y="190"
+      fill="#8b949e"
+      font-size="14"
+      font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+  >
+    평일 18:00 전환
+  </text>
+
+  <text
+      x="170"
+      y="190"
+      fill="#c9d1d9"
+      font-size="14"
+      font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+  >
+    {rotation_text}
+  </text>
+</svg>
+"""
+
+
+def write_if_changed(
+    path: Path,
+    content: str,
+) -> bool:
+
+    if path.exists():
+
+        old_content = path.read_text(
+            encoding="utf-8"
+        )
+
+        if old_content == content:
+            return False
+
+    path.write_text(
+        content,
+        encoding="utf-8",
+    )
+
+    return True
 
 
 # =========================================================
@@ -916,26 +801,21 @@ def update_readme(
 def main() -> None:
 
     if not README_PATH.exists():
-
         raise FileNotFoundError(
             "README.md가 없습니다."
         )
-
-    # =====================================================
-    # README
-    # =====================================================
 
     readme = README_PATH.read_text(
         encoding="utf-8"
     )
 
-    active_members = get_active_members(
-        readme
+    # README는 읽기만 한다.
+    # 더 이상 수정하지 않는다.
+    active_members = (
+        get_active_members(
+            readme
+        )
     )
-
-    # =====================================================
-    # 상태
-    # =====================================================
 
     state = load_state()
 
@@ -944,106 +824,86 @@ def main() -> None:
         active_members,
     )
 
-    # =====================================================
-    # 현재 시각 기준 담당 문제 날짜
-    # =====================================================
+    current = now_kst()
 
-    current_time = now_kst()
-
-    duty_date = current_problem_date(
-        current_time
+    problem_date = (
+        current_problem_date(
+            current
+        )
     )
 
-    current_username = resolve_duty(
-        state,
-        active_order,
-        duty_date,
+    current_username = (
+        resolve_duty(
+            state,
+            active_order,
+            problem_date,
+        )
     )
-
-    # =====================================================
-    # 다음 담당
-    # =====================================================
 
     next_date = next_weekday(
-        duty_date
+        problem_date
     )
 
-    next_username = next_active_username(
-        state["order"],
-        active_order,
-        current_username,
+    next_username = (
+        next_active_username(
+            state["order"],
+            active_order,
+            current_username,
+        )
     )
 
-    # =====================================================
-    # README
-    # =====================================================
-
-    block = build_duty_block(
-        duty_date,
-        current_username,
-        next_date,
-        next_username,
-        active_members,
-        active_order,
+    # 현재 계산 결과를 다음 실행의 기준으로 저장
+    state["last_date"] = (
+        problem_date.isoformat()
     )
 
-    updated_readme = update_readme(
-        readme,
-        block,
+    state["last_username"] = (
+        current_username
     )
-
-    README_PATH.write_text(
-        updated_readme,
-        encoding="utf-8",
-    )
-
-    # =====================================================
-    # 현재 상태를 다음 실행 기준점으로 저장
-    # =====================================================
-
-    state[
-        "last_date"
-    ] = duty_date.isoformat()
-
-    state[
-        "last_username"
-    ] = current_username
 
     save_state(
         state
     )
 
-    # =====================================================
-    # Action 로그
-    # =====================================================
-
-    print(
-        "실행 시각: "
-        f"{current_time.strftime('%Y-%m-%d %H:%M:%S %Z')}"
+    svg = build_svg(
+        problem_date,
+        current_username,
+        next_date,
+        next_username,
+        active_order,
+        active_members,
     )
 
-    print(
-        "활성 로테이션: "
-        + " → ".join(
-            active_members[
-                username
-            ]
-            for username
-            in active_order
+    svg_changed = (
+        write_if_changed(
+            SVG_PATH,
+            svg,
         )
     )
 
+    print()
     print(
         "현재 담당: "
-        f"{active_members[current_username]} "
-        f"({format_date(duty_date)} 문제)"
+        f"{format_date(problem_date)} "
+        f"{active_members.get(current_username, current_username)} "
+        f"(@{current_username})"
     )
 
     print(
         "다음 담당: "
-        f"{active_members[next_username]} "
-        f"({format_date(next_date)} 문제)"
+        f"{format_date(next_date)} "
+        f"{active_members.get(next_username, next_username)} "
+        f"(@{next_username})"
     )
+
+    if svg_changed:
+        print(
+            f"SVG 업데이트: {SVG_PATH}"
+        )
+    else:
+        print(
+            "SVG 변경 사항 없음"
+        )
 
 
 if __name__ == "__main__":
