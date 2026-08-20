@@ -13,7 +13,7 @@ def solution(cacheSize, cities):
 
             # 방금 사용했으므로 가장 최근 위치로 이동
             cache.remove(city)
-            cache.appendleft(city)
+            cache.append(city)
 
         # Cache Miss
         else:
@@ -25,9 +25,9 @@ def solution(cacheSize, cities):
 
             # 캐시가 꽉 찼다면 가장 오래된 도시 제거
             if len(cache) == cacheSize:
-                cache.pop()
+                cache.popleft()
 
             # 새로운 도시를 가장 최근 위치에 추가
-            cache.appendleft(city)
+            cache.append(city)
 
     return answer
