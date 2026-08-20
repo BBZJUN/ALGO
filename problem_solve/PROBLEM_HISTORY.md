@@ -29,4 +29,4 @@
 | 08-17 | LTC | Permutations | https://leetcode.com/problems/permutations/description/ |
 | 08-18 | SWEA | 보호 필름 | https://swexpertacademy.com/main/code/problem/problemDetail.do?contestProbId=AV5V1SYKAaUDFAWu&categoryId=AV5V1SYKAaUDFAWu&categoryType=CODE&problemTitle=2112&orderBy=FIRST_REG_DATETIME&selectCodeLang=ALL&select-1=&pageSize=10&pageIndex=1 |
 | 08-19 | SWEA | 치즈 도둑 | https://swexpertacademy.com/main/code/problem/problemDetail.do?problemLevel=4&contestProbId=AWrDOdQqRCUDFARG&categoryId=AWrDOdQqRCUDFARG&categoryType=CODE&problemTitle=&orderBy=PASS_RATE&selectCodeLang=ALL&select-1=4&pageSize=10&pageIndex=6 |
-| 08-20 | PGS | 뉴스 클러스터링 | https://school.programmers.co.kr/learn/courses/30/lessons/17677 |
+| 08-20 | PGS | 캐시 | https://school.programmers.co.kr/learn/courses/30/lessons/17680 |
