@@ -92,7 +92,7 @@
 <!-- PROBLEM_DUTY:START -->
 ## 📌 문제 출제 담당
 
-![문제 출제 담당](./problem-duty.svg)
+![문제 출제 담당](./assets/problem-duty.svg)
 
 <!-- PROBLEM_DUTY:END -->
 
