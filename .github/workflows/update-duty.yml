@@ -38,20 +38,15 @@ jobs:
       - name: Commit duty SVG
         shell: bash
         run: |
-          if [ -z "$(git status --porcelain -- assets/problem-duty.svg)" ]; then
-            echo "담당자 SVG 변경 사항이 없습니다."
-            exit 0
-          fi
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # 현재 .gitignore에서 assets가 제외되어 있어도
-          # 새 SVG를 추가할 수 있도록 -f 사용
+          # assets가 gitignore여도 SVG를 강제로 staging
           git add -f -- assets/problem-duty.svg
 
+          # staging 이후 변경 여부 확인
           if git diff --cached --quiet; then
-            echo "커밋할 변경 사항이 없습니다."
+            echo "담당자 SVG 변경 사항이 없습니다."
             exit 0
           fi
 
