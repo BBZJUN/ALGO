@@ -92,14 +92,14 @@
 <!-- PROBLEM_DUTY:START -->
 ## 📌 문제 출제 담당
 
-![문제 출제 담당](./problem-duty.svg)
+![문제 출제 담당](./assets/problem-duty.svg)
 
 <!-- PROBLEM_DUTY:END -->
 
 <br />
 
-### 🟨 08-20 데일리 문제
-[캐시](https://school.programmers.co.kr/learn/courses/30/lessons/17680)
+### 🟨 08-21 데일리 문제
+[뉴스 클러스터링](https://school.programmers.co.kr/learn/courses/30/lessons/17677)
 
 
 <br />

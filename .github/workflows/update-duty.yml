@@ -31,25 +31,26 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Update problem duty
+      - name: Generate problem duty SVG
         run: |
           python .github/scripts/update_duty.py
 
-      - name: Commit duty state and SVG
+      - name: Commit duty SVG
         shell: bash
         run: |
-          if [ -z "$(git status --porcelain -- problem-duty.json problem-duty.svg)" ]; then
-            echo "담당자 변경 사항이 없습니다."
-            exit 0
-          fi
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add -- problem-duty.json
-          git add -- problem-duty.svg
+          # assets가 gitignore여도 SVG를 강제로 staging
+          git add -f -- assets/problem-duty.svg
 
-          git commit -m "chore: 문제 출제 담당자 업데이트 [skip ci]"
+          # staging 이후 변경 여부 확인
+          if git diff --cached --quiet; then
+            echo "담당자 SVG 변경 사항이 없습니다."
+            exit 0
+          fi
+
+          git commit -m "chore: 문제 출제 담당자 SVG 업데이트 [skip ci]"
 
           git pull --rebase origin main
           git push origin HEAD:main
