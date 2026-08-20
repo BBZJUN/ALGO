@@ -92,14 +92,19 @@
 <!-- PROBLEM_DUTY:START -->
 ## 📌 문제 출제 담당
 
-![문제 출제 담당](./assets/problem-duty.svg)
+> **현재 담당 · 08-21 (금) 문제** → [**박연주**](https://github.com/yeonju73)
 
+> **다음 담당 · 08-24 (월) 문제** → [**최현지**](https://github.com/hyunji-ch5i15)
+
+> 담당은 평일 **18:00**에 다음 문제 담당자로 전환됩니다.
+
+<sub>박천익 → 김준우 → 이영은 → 김기훈 → 강재준 → 김세연 → 마예은 → 신상윤 → 박연주 → 최현지</sub>
 <!-- PROBLEM_DUTY:END -->
 
 <br />
 
 ### 🟨 08-20 데일리 문제
-[뉴스 클러스터링](https://school.programmers.co.kr/learn/courses/30/lessons/17677)
+[캐시](https://school.programmers.co.kr/learn/courses/30/lessons/17680)
 
 
 <br />
