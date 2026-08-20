@@ -2,4 +2,4 @@
 
 ## 문제 목록
 
-- [캐시](https://school.programmers.co.kr/learn/courses/30/lessons/17680)
+- [뉴스 클러스터링](https://school.programmers.co.kr/learn/courses/30/lessons/17677)
