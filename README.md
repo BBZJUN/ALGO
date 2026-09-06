@@ -98,8 +98,8 @@
 
 <br />
 
-### 🟨 09-04 데일리 문제
-[순위](https://school.programmers.co.kr/learn/courses/30/lessons/49191)
+### 🟨 09-07 데일리 문제
+[자물쇠와 열쇠](https://school.programmers.co.kr/learn/courses/30/lessons/60059)
 
 <br />
 
