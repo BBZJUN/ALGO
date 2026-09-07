@@ -5,8 +5,10 @@ from pathlib import Path
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 import html
+import json
 import os
 import re
+import subprocess
 
 from generate_daily import build_code_template
 
@@ -17,6 +19,10 @@ GRASS_SVG = Path("assets/algorithm-grass.svg")
 
 START = "<!-- ALGORITHM_ACTIVITY:START -->"
 END = "<!-- ALGORITHM_ACTIVITY:END -->"
+
+
+# 파일별 GitHub 커밋 작성자 조회 결과 캐시
+COMMIT_AUTHOR_CACHE: dict[str, str | None] = {}
 
 
 # =========================================================
@@ -356,17 +362,107 @@ def submitted_file(
     )
 
 
+def last_member_commit_author(
+    path: Path,
+    member_usernames: set[str],
+) -> str | None:
+    """
+    파일명이 username과 다를 때 GitHub의 파일 커밋 이력을 조회해
+    가장 최근에 등장하는 스터디 멤버의 GitHub login을 반환한다.
+
+    예:
+        Solution.java
+        → 최근 커밋 이력 중 author.login == "hyunji-ch5i15"
+        → hyunji-ch5i15의 제출로 판정
+
+    Batch merge의 merge commit이나 github-actions[bot]처럼
+    스터디 멤버가 아닌 작성자는 건너뛴다.
+
+    같은 파일을 멤버마다 반복 조회하지 않도록 결과를 캐싱한다.
+    """
+
+    key = path.as_posix()
+
+    if key in COMMIT_AUTHOR_CACHE:
+        return COMMIT_AUTHOR_CACHE[key]
+
+    repository = os.environ.get("GH_REPO")
+
+    if not repository:
+        COMMIT_AUTHOR_CACHE[key] = None
+        return None
+
+    try:
+        result = subprocess.run(
+            [
+                "gh",
+                "api",
+                "--method",
+                "GET",
+                f"repos/{repository}/commits",
+                "-f",
+                f"path={key}",
+                "-f",
+                "per_page=10",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        commits = json.loads(
+            result.stdout
+        )
+
+    except (
+        subprocess.CalledProcessError,
+        json.JSONDecodeError,
+        FileNotFoundError,
+    ):
+        COMMIT_AUTHOR_CACHE[key] = None
+        return None
+
+    for commit in commits:
+
+        author = commit.get(
+            "author"
+        )
+
+        if not author:
+            continue
+
+        login = author.get(
+            "login"
+        )
+
+        if not login:
+            continue
+
+        login_lower = login.lower()
+
+        if login_lower in member_usernames:
+            COMMIT_AUTHOR_CACHE[key] = login_lower
+            return login_lower
+
+    COMMIT_AUTHOR_CACHE[key] = None
+    return None
+
+
 def solved_on_day(
     day: Path,
     username: str,
+    member_usernames: set[str],
 ) -> bool:
     """
     평일 1일 1문제 기준.
 
-    해당 날짜 문제 폴더에 있는
-    자신의 파일이 기본 템플릿과 달라졌으면
-    풀이 완료로 판단한다.
+    1. 파일명이 GitHub username과 같으면 기존 방식으로 판정한다.
+    2. 파일명이 Solution.java처럼 username과 다르면,
+       코드 파일에 한해서 GitHub 커밋 작성자를 조회해 보정한다.
+    3. README.md 같은 비코드 파일은 커밋 기반 보정 대상에서 제외한다.
     """
+
+    username_lower = username.lower()
 
     for problem in day.iterdir():
 
@@ -378,20 +474,59 @@ def solved_on_day(
             if not file.is_file():
                 continue
 
+            file_stem = (
+                file.stem.lower()
+            )
+
             # -------------------------------------------------
-            # 파일 이름이 GitHub username과 동일한 경우만 확인
-            #
-            # oneul0.java
-            # BBZJUN.java
-            # ...
+            # 정상 제출:
+            # oneul0.java, hyunji-ch5i15.java 등
+            # -------------------------------------------------
+
+            if file_stem == username_lower:
+
+                if submitted_file(
+                    file,
+                    username,
+                ):
+                    return True
+
+                continue
+
+            # -------------------------------------------------
+            # README.md 등 코드 파일이 아닌 것은
+            # 커밋 작성자 기반 보정에서 제외
             # -------------------------------------------------
 
             if (
-                file.stem.lower()
-                != username.lower()
+                file.suffix.lower()
+                not in EXT_TO_LANG
             ):
                 continue
 
+            # -------------------------------------------------
+            # 파일명이 다른 스터디 멤버의 username이면
+            # 그 멤버의 정상 제출 파일이므로 조회하지 않는다.
+            # -------------------------------------------------
+
+            if file_stem in member_usernames:
+                continue
+
+            # -------------------------------------------------
+            # Solution.java / Main.java 등:
+            # 파일명이 username과 다를 때 커밋 작성자로 보정
+            # -------------------------------------------------
+
+            author = last_member_commit_author(
+                file,
+                member_usernames,
+            )
+
+            if author != username_lower:
+                continue
+
+            # 작성자가 확인되어도 빈 템플릿 그대로라면
+            # 제출로 인정하지 않는다.
             if submitted_file(
                 file,
                 username,
@@ -459,6 +594,11 @@ def calculate(
 
     result = {}
 
+    member_usernames = {
+        member["username"].lower()
+        for member in members
+    }
+
     today = today_kst()
 
     current_year = today.year
@@ -492,6 +632,7 @@ def calculate(
             done = solved_on_day(
                 day,
                 username,
+                member_usernames,
             )
 
             solved_list.append(
