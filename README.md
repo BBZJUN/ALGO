@@ -98,8 +98,8 @@
 
 <br />
 
-### 🟨 09-07 데일리 문제
-[자물쇠와 열쇠](https://school.programmers.co.kr/learn/courses/30/lessons/60059)
+### 🟨 09-08 데일리 문제
+[Letter Combinations of a Phone Number](https://leetcode.com/problems/letter-combinations-of-a-phone-number/description/)
 
 <br />
 
