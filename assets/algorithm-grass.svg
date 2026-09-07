@@ -1504,9 +1504,9 @@ text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 <a xlink:href="https://github.com/hyunji-ch5i15" target="_blank">
 <text x="0" y="360" class="name">최현지</text>
 </a>
-<text x="72" y="360" class="score">414점</text>
-<rect x="125" y="348" width="88" height="17" rx="8.5" fill="#bf8700"/>
-<text x="169.0" y="359.5" class="badge" text-anchor="middle">GOLD</text>
+<text x="72" y="360" class="score">502점</text>
+<rect x="125" y="348" width="88" height="17" rx="8.5" fill="#8250df"/>
+<text x="169.0" y="359.5" class="badge" text-anchor="middle">PLATINUM</text>
 <a xlink:href="https://github.com/Chwippo-Eleven/ALGO/tree/main/problem_solve/07-21" target="_blank">
 <rect x="270" y="349" width="14" height="14" rx="3" fill="#216e39">
 <title>최현지 · 07-21 · 풀이 완료</title>
@@ -1578,8 +1578,8 @@ text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 </rect>
 </a>
 <a xlink:href="https://github.com/Chwippo-Eleven/ALGO/tree/main/problem_solve/08-10" target="_blank">
-<rect x="522" y="349" width="14" height="14" rx="3" fill="#ebedf0">
-<title>최현지 · 08-10 · 미제출</title>
+<rect x="522" y="349" width="14" height="14" rx="3" fill="#216e39">
+<title>최현지 · 08-10 · 풀이 완료</title>
 </rect>
 </a>
 <a xlink:href="https://github.com/Chwippo-Eleven/ALGO/tree/main/problem_solve/08-11" target="_blank">
@@ -1613,8 +1613,8 @@ text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 </rect>
 </a>
 <a xlink:href="https://github.com/Chwippo-Eleven/ALGO/tree/main/problem_solve/08-19" target="_blank">
-<rect x="648" y="349" width="14" height="14" rx="3" fill="#ebedf0">
-<title>최현지 · 08-19 · 미제출</title>
+<rect x="648" y="349" width="14" height="14" rx="3" fill="#216e39">
+<title>최현지 · 08-19 · 풀이 완료</title>
 </rect>
 </a>
 <a xlink:href="https://github.com/Chwippo-Eleven/ALGO/tree/main/problem_solve/08-20" target="_blank">
@@ -1668,8 +1668,8 @@ text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 </rect>
 </a>
 <a xlink:href="https://github.com/Chwippo-Eleven/ALGO/tree/main/problem_solve/09-03" target="_blank">
-<rect x="846" y="349" width="14" height="14" rx="3" fill="#ebedf0">
-<title>최현지 · 09-03 · 미제출</title>
+<rect x="846" y="349" width="14" height="14" rx="3" fill="#216e39">
+<title>최현지 · 09-03 · 풀이 완료</title>
 </rect>
 </a>
 <a xlink:href="https://github.com/Chwippo-Eleven/ALGO/tree/main/problem_solve/09-04" target="_blank">
@@ -1682,7 +1682,7 @@ text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 <title>최현지 · 09-07 · 미제출</title>
 </rect>
 </a>
-<text x="918" y="360" class="stat">이번달 참여 1회 · 최장 스트릭 14일</text>
+<text x="918" y="360" class="stat">이번달 참여 2회 · 최장 스트릭 17일</text>
 <a xlink:href="https://github.com/qkrcjsdlr10" target="_blank">
 <text x="0" y="388" class="name">박천익</text>
 </a>
